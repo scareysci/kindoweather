@@ -12,7 +12,7 @@
             --card: #1e1e1e; 
             --text: #ffffff; 
             --accent: #4facfe; 
-            --pressure: #bb86fc; /* New color for pressure */
+            --pressure: #bb86fc; 
             --gray: #aaaaaa; 
             --hover: #2c2c2c;
             --hot: #ff6b6b;
@@ -42,8 +42,8 @@
         }
 
         .location-title {
-            font-size: 28px; /* Made bigger */
-            color: var(--text); /* Changed to white for better visibility at larger size */
+            font-size: 28px; 
+            color: var(--text); 
             font-weight: 600;
             margin-bottom: 15px;
             text-transform: uppercase;
@@ -67,6 +67,10 @@
             margin: 5px 0 0 0; 
             letter-spacing: -2px; 
             line-height: 1;
+            /* Flexbox to keep unit aligned */
+            display: flex;
+            justify-content: center;
+            align-items: baseline;
         }
 
         .temp-small {
@@ -76,7 +80,13 @@
             margin-bottom: 20px;
         }
         
-        .unit { font-size: 30px; color: var(--gray); }
+        /* Updated Unit Style */
+        .unit { 
+            font-size: 80px; /* Same size as temp */
+            color: var(--gray); 
+            font-weight: 200;
+            margin-left: 5px;
+        }
         
         .details { 
             display: grid; 
@@ -109,7 +119,7 @@
             padding: 15px; 
             height: 340px; 
             position: relative;
-            margin-bottom: 20px; /* Spacing between charts */
+            margin-bottom: 20px; 
         }
         
         .chart-title {
@@ -153,7 +163,6 @@
             transform: scale(0.95);
         }
 
-        /* Loading Animation State */
         .loading {
             opacity: 0.5;
             pointer-events: none;
@@ -166,7 +175,6 @@
         <div class="weather-card">
             <div class="location-title">Current Conditions in Kindersley</div>
             
-            <!-- Sky Condition Section -->
             <div id="sky-display" class="sky-condition">
                 <span id="sky-icon" class="sky-icon"></span>
                 <span id="sky-text">...</span>
@@ -174,11 +182,12 @@
 
             <div id="date-display" style="color: var(--accent); font-weight: bold; margin-bottom: 10px; font-size: 1rem;">INITIALIZING...</div>
             
-            <div class="temp-big"><span id="temp">--</span><span class="unit">°C</span></div>
+            <div class="temp-big">
+                <span id="temp">--</span><span class="unit">°C</span>
+            </div>
             <div class="temp-small" id="temp-f">--°F</div>
             
             <div class="details">
-                <!-- Row 1: High/Low -->
                 <div class="detail-item">
                     <span>24h High</span>
                     <strong id="high-24" class="high-temp">--°C</strong>
@@ -188,7 +197,6 @@
                     <strong id="low-24" class="low-temp">--°C</strong>
                 </div>
 
-                <!-- Row 2: Humidity/Pressure -->
                 <div class="detail-item">
                     <span>Humidity</span>
                     <strong id="humid">--%</strong>
@@ -198,7 +206,6 @@
                     <strong id="press">--</strong>
                 </div>
 
-                <!-- Row 3: Sunrise/Sunset -->
                 <div class="detail-item">
                     <span>Sunrise</span>
                     <strong id="sunrise" class="sun-time">--:--</strong>
@@ -210,7 +217,6 @@
             </div>
         </div>
 
-        <!-- Temperature Chart -->
         <div class="chart-container">
             <h3 class="chart-title">24 Hour Temperature Trend</h3>
             <div style="height: 280px; width: 100%;">
@@ -218,7 +224,6 @@
             </div>
         </div>
 
-        <!-- Pressure Chart -->
         <div class="chart-container">
             <h3 class="chart-title">24 Hour Pressure Trend</h3>
             <div style="height: 280px; width: 100%;">
@@ -236,14 +241,10 @@
         // --- CONFIGURATION ---
         const scriptURL = "https://script.google.com/macros/s/AKfycbxEPVT6M3sImboFp8V6xo7tElaTzZ3As8PZxFxwm4NQkYyILhzdnUe7OevS3fqSXw/exec"; 
         const ELEVATION_METERS = 675; 
-        
-        // Open-Meteo API for Kindersley
         const externalWeatherURL = "https://api.open-meteo.com/v1/forecast?latitude=51.467&longitude=-109.157&current=weather_code,is_day&daily=sunrise,sunset&timezone=auto";
         // ---------------------
 
-        // Helper to calculate Sea Level Pressure (kPa)
         function calculatePressureKPa(rawHPa, tempC) {
-            // Formula: P_sea = P_station * (1 - (0.0065 * h) / (T + 0.0065 * h + 273.15)) ^ -5.257
             const seaLevelPressHPa = rawHPa * Math.pow(1 - (0.0065 * ELEVATION_METERS) / (tempC + (0.0065 * ELEVATION_METERS) + 273.15), -5.257);
             return seaLevelPressHPa / 10;
         }
@@ -269,12 +270,10 @@
                 
                 if (!Array.isArray(data) || data.length === 0) throw new Error("No data");
 
-                // Filter Data to Last 24 Hours
                 const oneDayAgo = new Date().getTime() - (24 * 60 * 60 * 1000);
                 const last24HoursData = data.filter(d => new Date(d.date).getTime() > oneDayAgo);
                 const historyToUse = last24HoursData.length > 0 ? last24HoursData : data;
 
-                // 1. Process Current Data (Last item in history)
                 const current = historyToUse[historyToUse.length - 1];
                 const tempC = parseFloat(current.temp);
                 const tempF = (tempC * 9/5) + 32;
@@ -282,12 +281,10 @@
                 const rawPressHPa = parseFloat(current.press);
                 const pressKPa = calculatePressureKPa(rawPressHPa, tempC);
 
-                // 24h High/Low Stats
                 const temps24h = historyToUse.map(d => parseFloat(d.temp));
                 const high24 = Math.max(...temps24h);
                 const low24 = Math.min(...temps24h);
 
-                // Update DOM
                 document.getElementById('temp').innerText = tempC.toFixed(1);
                 document.getElementById('temp-f').innerText = tempF.toFixed(1) + "°F";
                 document.getElementById('high-24').innerText = high24.toFixed(1) + "°C";
@@ -299,7 +296,6 @@
                 dateDisplay.innerText = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 document.getElementById('last-updated').innerText = "Last Sync: " + new Date().toLocaleTimeString();
 
-                // Update Charts
                 updateTempChart(historyToUse);
                 updatePressureChart(historyToUse);
 
@@ -314,7 +310,6 @@
                 const response = await fetch(externalWeatherURL);
                 const data = await response.json();
 
-                // Sky Conditions
                 const code = data.current.weather_code;
                 const isDay = data.current.is_day;
                 const condition = getWeatherDescription(code);
@@ -322,7 +317,6 @@
                 document.getElementById('sky-text').innerText = condition.text;
                 document.getElementById('sky-icon').innerText = isDay ? condition.icon : condition.nightIcon || condition.icon;
 
-                // Sunrise / Sunset
                 const sunriseTime = new Date(data.daily.sunrise[0]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 const sunsetTime = new Date(data.daily.sunset[0]).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
@@ -367,10 +361,36 @@
         let myTempChart;
         let myPressureChart;
 
+        // Custom Plugin to Draw the "Freezing Line" at 0
+        const freezingLinePlugin = {
+            id: 'freezingLine',
+            beforeDraw: (chart) => {
+                const { ctx, scales: { y } } = chart;
+                const zeroY = y.getPixelForValue(0);
+
+                // Only draw if 0 is within the visible area
+                if (zeroY >= y.top && zeroY <= y.bottom) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(chart.chartArea.left, zeroY);
+                    ctx.lineTo(chart.chartArea.right, zeroY);
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'; // Bright line
+                    ctx.setLineDash([5, 5]); // Dashed line
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+        };
+
         function updateTempChart(data) {
             const ctx = document.getElementById('weatherChart').getContext('2d');
             const labels = data.map(d => new Date(d.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
-            const temps = data.map(d => d.temp);
+            const temps = data.map(d => parseFloat(d.temp));
+            
+            // Calculate Min/Max for Dynamic Range (Min - 10, Max + 10)
+            const maxVal = Math.max(...temps);
+            const minVal = Math.min(...temps);
 
             if (myTempChart) myTempChart.destroy();
 
@@ -398,15 +418,32 @@
                         pointBorderColor: '#4facfe',
                     }]
                 },
-                options: createChartOptions('Temperature (°C)')
+                plugins: [freezingLinePlugin], // Add the zero line plugin
+                options: {
+                    ...createChartOptions('Temperature (°C)'),
+                    scales: {
+                        x: { 
+                            display: true,
+                            title: { display: true, text: 'Time', color: '#555', font: { size: 12 } },
+                            grid: { display: false },
+                            ticks: { color: '#888', maxRotation: 0, maxTicksLimit: 7 }
+                        }, 
+                        y: { 
+                            display: true,
+                            min: minVal - 10, // Padding bottom
+                            max: maxVal + 10, // Padding top
+                            title: { display: true, text: 'Temperature (°C)', color: '#555', font: { size: 12 } },
+                            grid: { color: '#333', borderDash: [5, 5] }, 
+                            ticks: { color: '#888' }
+                        }
+                    }
+                }
             });
         }
 
         function updatePressureChart(data) {
             const ctx = document.getElementById('pressureChart').getContext('2d');
             const labels = data.map(d => new Date(d.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
-            
-            // Calculate pressure for every historical point
             const pressures = data.map(d => calculatePressureKPa(parseFloat(d.press), parseFloat(d.temp)));
 
             if (myPressureChart) myPressureChart.destroy();
@@ -418,7 +455,7 @@
                     datasets: [{
                         label: 'Pressure (kPa)',
                         data: pressures,
-                        borderColor: '#bb86fc', // Purple color
+                        borderColor: '#bb86fc', 
                         backgroundColor: (context) => {
                             const ctx = context.chart.ctx;
                             const gradient = ctx.createLinearGradient(0, 0, 0, 300);
@@ -435,11 +472,28 @@
                         pointBorderColor: '#bb86fc',
                     }]
                 },
-                options: createChartOptions('Pressure (kPa)')
+                options: {
+                    ...createChartOptions('Pressure (kPa)'),
+                    scales: {
+                        x: { 
+                            display: true,
+                            title: { display: true, text: 'Time', color: '#555', font: { size: 12 } },
+                            grid: { display: false },
+                            ticks: { color: '#888', maxRotation: 0, maxTicksLimit: 7 }
+                        }, 
+                        y: { 
+                            display: true,
+                            min: 90,  // Fixed range start
+                            max: 110, // Fixed range end
+                            title: { display: true, text: 'Pressure (kPa)', color: '#555', font: { size: 12 } },
+                            grid: { color: '#333', borderDash: [5, 5] }, 
+                            ticks: { color: '#888' }
+                        }
+                    }
+                }
             });
         }
 
-        // Shared Options Generator
         function createChartOptions(yAxisTitle) {
             return {
                 responsive: true,
@@ -458,20 +512,6 @@
                         callbacks: {
                             label: function(context) { return context.parsed.y.toFixed(2) + ' ' + (yAxisTitle.includes('Temp') ? '°C' : 'kPa'); }
                         }
-                    }
-                },
-                scales: {
-                    x: { 
-                        display: true,
-                        title: { display: true, text: 'Time', color: '#555', font: { size: 12 } },
-                        grid: { display: false },
-                        ticks: { color: '#888', maxRotation: 0, maxTicksLimit: 7 }
-                    }, 
-                    y: { 
-                        display: true,
-                        title: { display: true, text: yAxisTitle, color: '#555', font: { size: 12 } },
-                        grid: { color: '#333', borderDash: [5, 5] }, 
-                        ticks: { color: '#888' }
                     }
                 }
             };
