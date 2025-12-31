@@ -18,6 +18,7 @@
             --hot: #ff6b6b;
             --cold: #4facfe;
             --sun: #f6d365;
+            --quote: #00e5ff;
         }
         body { 
             background-color: var(--bg); 
@@ -77,7 +78,18 @@
             font-size: 24px;
             color: var(--gray);
             font-weight: 300;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
+        }
+
+        /* Fun Quote Style */
+        .quote-display {
+            font-size: 16px;
+            color: var(--quote);
+            font-style: italic;
+            margin: 0 0 25px 0;
+            min-height: 20px;
+            padding: 0 10px;
+            line-height: 1.4;
         }
         
         /* Updated Unit Style */
@@ -187,6 +199,9 @@
             </div>
             <div class="temp-small" id="temp-f">--°F</div>
             
+            <!-- NEW: The Quote Section -->
+            <div id="quote-display" class="quote-display">Loading wit...</div>
+            
             <div class="details">
                 <div class="detail-item">
                     <span>24h High</span>
@@ -248,9 +263,210 @@
 
         const externalWeatherURL = "https://api.open-meteo.com/v1/forecast?latitude=51.467&longitude=-109.157&current=weather_code,is_day&daily=sunrise,sunset&timezone=auto";
 
+        // --- WITTY QUOTES DATABASE (5-Degree Increments) ---
+        const WEATHER_QUOTES = {
+            "below_n30": [ // Below -30
+                "The air hurts my face. Why do I live here?", "Even the penguins are asking for a transfer.", "Don't breathe too deep, your lungs might shatter.",
+                "Instant coffee? No, instant ice.", "I saw a polar bear buying a parka.", "The thermometer just gave up and went inside.",
+                "It’s not cold, it’s 'terminally crisp'.", "We are currently located on the surface of Pluto.", "If you go outside, you will become a statue.",
+                "My soul has frozen over.", "I'm pretty sure the atmosphere is broken.", "Sending help. And hot cocoa. Mostly hot cocoa.",
+                "Even the ghosts are shivering.", "Car won't start. It's on strike until spring.", "Just stepping outside burns calories... to stay alive.",
+                "Your nose hairs will freeze instantly. Enjoy.", "Mother Nature gives this weather a 0 out of 10.", "Perfect weather for hibernation.",
+                "Is it cold? Or is the sun just broken?", "I’d go outside, but I prefer my blood liquid.", "Warning: Optimism freezes at this temperature.",
+                "Let's play a game called 'Don't go outside'.", "The snowman is knocking on the door asking to come in.", "Everything is frozen. Including my motivation.",
+                "At this point, a freezer is a sauna.", "Cold? No. This is advanced cold.", "The wind chill is 'Disrespectful'.",
+                "Survival mode: Activated.", "Forget layers. Wear the whole closet.", "I saw a bird hitchhiking south.",
+                "Science has stopped working. It's just cold now.", "I stepped outside and my eyebrows snapped off."
+            ],
+            "n30_to_n25": [ // -30 to -25
+                "It's colder than a politician's heart out there.", "Your shadow froze to the ground.", "If you can read this, go back inside.",
+                "I’m wearing three pairs of socks and I’m still mad.", "The weather forecast is 'No'.", "My car made a noise I’ve never heard before.",
+                "The only thing running today is my nose.", "Brace yourself, the electric bill is coming.", "It’s officially 'I can’t feel my toes' degrees.",
+                "Great weather for a cup of tea... inside a volcano.", "Don't lick the flagpole. Seriously.", "Sunshine is a lie today.",
+                "The air is spicy. Cold spicy.", "Winter is here, and it's angry.", "Dress like an onion. A very cold onion.",
+                "It’s a dry cold. Like liquid nitrogen is dry.", "I walked outside and aged 50 years.", "Even the internet connection feels slow and cold.",
+                "Too cold to be fashionable. Look like a marshmallow.", "Why is the air biting me?", "The squirrels are regretting their life choices.",
+                "Not fit for man nor beast.", "Hold your breath, or it will freeze in front of you.", "Current mood: Frozen.",
+                "If you need me, I'll be in my blanket fort.", "Does this scarf make me look like I'm freezing?", "The outside is currently out of order.",
+                "Extreme shivering is my cardio today.", "Go outside? In this economy?", "Hello darkness my old friend... and frostbite.",
+                "I'm considering burning my furniture for warmth.", "The smoke from the chimney froze solid."
+            ],
+            "n25_to_n20": [ // -25 to -20
+                "It's brisk. And by brisk, I mean painful.", "A good day to pretend you're a bear.", "Cold enough to ruin your plans, warm enough to give you hope.",
+                "The car heater is trying its best.", "It’s chilly, but at least there are no mosquitoes.", "I’ve had popsicles warmer than this.",
+                "Respect the toque.", "Visible breath is nature's exhaust pipe.", "It's not that cold, said the liar.", "Winter is hugging us a little too tight.",
+                "You could scrape the ice, or just move.", "Definitely a 'start the car remotely' kind of day.", "Solid sweater weather. Maybe two sweaters.",
+                "It's crisp. Like a frozen lettuce leaf.", "If you run fast enough, it's only miserable.", "The pavement is basically an ice rink now.",
+                "Gloves are not optional accessories today.", "A fine day for hot soup and denial.", "It's cold, but at least it's... nope, just cold.",
+                "The sun is shining but it provides no warmth.", "Static electricity season is in full swing.", "My ears are staging a protest.",
+                "Acceptable weather for penguins, questionable for humans.", "Ice scrapers at dawn. A duel with nature.", "Just cold enough to be annoying.",
+                "The kind of cold that sneaks into your boots.", "Don't trust the blue sky. It's a trap.", "Walking style: Penguin shuffle.",
+                "Good luck with that zipper.", "Cold hands, warm heart. Freezing feet.",
+                "My face hurts, and I haven't even gone out yet.", "It's a 'delivery pizza' kind of night."
+            ],
+            "n20_to_n15": [ // -20 to -15
+                "It's nippier than a piranha in a kiddie pool.", "The dog went out, paused, and came right back in.", "Nose hair freezing territory.", 
+                "You know it's cold when the snow crunches loudly.", "Exposed skin is a bad idea.", "My car seat is a block of ice.",
+                "I miss the feeling of warmth.", "Winter has settled in for the long haul.", "Don't touch the door handle without gloves.",
+                "The wind is acting personally offended.", "It's 'I need a starter for my starter' weather.", "Layer up, buttercup.",
+                "Hibernation sounds really logical right now.", "The kind of cold that wakes you up fast.", "I can see my breath, and my breath looks scared.",
+                "Coffee is mandatory.", "I'm not saying it's cold, but the flasher was describing himself.", "The air is fresh. Too fresh.",
+                "Keep the engine running.", "It's a biting cold.", "Everything is stiff. Including my will to live.",
+                "Winter wonderland? More like winter wastland.", "I felt a draft and nearly cried.", "Put a hat on. No, a warmer one.",
+                "The heater is the MVP today.", "Frost on the windows, frost in my heart.", "Stay warm, stay sane.",
+                "It's not horrible, but it's not good.", "Could be worse. Could be... actually no, this is bad.", "Chilly enough to complain."
+            ],
+            "n15_to_n10": [ // -15 to -10
+                "Standard winter setting enabled.", "It's cold, but you'll survive.", "Good skiing weather, if you're into that.",
+                "The snow isn't melting anytime soon.", "You can leave the heavy parka, maybe.", "A regular day in the freezer.",
+                "Refreshing? Let's go with refreshing.", "Your cheeks will turn pink.", "Hot chocolate weather confirmed.",
+                "Not freezing to death, but not thriving.", "The ice is holding strong.", "Watch for black ice.",
+                "It's 'where are my gloves' degrees.", "Manageable misery.", "The sun is trying, bless its heart.",
+                "You might feel your toes today.", "Crisp and clear.", "Winter is just hanging out now.",
+                "Don't slip.", "The car warmed up in only 10 minutes!", "I saw a squirrel shivering.", 
+                "It's definitely jacket weather.", "Not warm, not arctic. Just cold.", "Average shivering conditions.",
+                "Keep moving and you'll be fine.", "A scarf would be a smart choice.", "The cold is annoying, but polite.",
+                "Winter is behaving itself, mostly.", "Cold enough to see your breath.", "Just another day in the fridge."
+            ],
+            "n10_to_n5": [ // -10 to -5
+                "It's almost tolerable.", "The ice is thinking about melting. Maybe.", "You can unzip the coat a little.",
+                "Hockey weather!", "Perfect for a brisk walk.", "The snow is getting sticky.",
+                "Is it warming up? Or am I delirious?", "Not bad for winter.", "I've felt colder glances from my ex.",
+                "The biting cold has lost its teeth.", "You can survive this without crying.", "The car starts on the first try!",
+                "Gloves are recommended, not required for survival.", "It's a 'light winter' day.", "Enjoy the fresh air.",
+                "The snowman is sweating slightly.", "Decent weather for Canadians.", "You don't need the survival gear today.",
+                "It's pleasantly chilly.", "Winter lite.", "The frost is looking artistic.",
+                "Good day to be a husky.", "Not quite spring, but we're getting there.", "The air feels cleaner.",
+                "You might only need one pair of socks.", "It's brisk, baby!", "Manageable cold.",
+                "The wind is just a breeze now.", "Almost nice out.", "Acceptable outdoor conditions."
+            ],
+            "n5_to_0": [ // -5 to 0
+                "We are in the 'Slush Zone'.", "The ice is melting... slowly.", "It’s messy weather. Bring a mop.",
+                "Is it rain? Is it snow? It's snain.", "Jacket open or jacket closed? The eternal struggle.", "The snow is getting heavy and regretful.",
+                "Grey skies and wet socks.", "The thermostat is teasing us.", "Perfect weather for losing a glove.",
+                "Nature can’t decide what it wants to do.", "Careful on the black ice, ninja.", "It’s damp. The worst kind of cold.",
+                "Car wash? Don't bother.", "A confusing time for your wardrobe.", "The mud season begins.",
+                "It’s 'where is my other mitten' degrees.", "Just cold enough to complain about.", "The snow is brown now. Lovely.",
+                "Puddle dodging is the new sport.", "Everything is wet.", "Winter is packing its bags but hasn't left yet.",
+                "Umbrella or snow boots? Why not both?", "Feels like a refrigerator in here.", "Neither here nor there.",
+                "Mediocre winter day.", "If water could be indecisive, this is it.", "Beware the falling icicles.",
+                "Slippery when wet.", "It's a grey area.", "Damp and dreary."
+            ],
+            "0_to_5": [ // 0 to 5
+                "Is that... spring? Or a trick?", "Light jacket weather! Freedom!", "The birds are confused but singing anyway.",
+                "Coffee tastes better when you aren't shivering.", "Roll down the windows... halfway.", "It’s officially 'Meh' outside.",
+                "The sun actually feels warmish.", "Goodbye snow, hello mud.", "You might get away with just a hoodie.",
+                "Nature is waking up, hitting snooze.", "A perfectly average day.", "Not hot, not cold. Just... weather.",
+                "The plants are thinking about it.", "Good day for a brisk walk.", "No AC, no heat. The sweet spot for bills.",
+                "Don't put the coat away just yet.", "Fresh air that doesn't hurt.", "Patio season? Maybe with a heater.",
+                "The kind of weather nobody talks about.", "Safe to leave the house without survival gear.", "A tease of better things to come.",
+                "The car is finally not an icebox.", "Neutral weather for neutral people.", "Actually quite pleasant, for a Tuesday.",
+                "Dew on the grass, hope in the air.", "You can finally feel your fingers again.", "Optimistic temperature.",
+                "The dog refuses to come inside now.", "Goldilocks zone of 'it's okay'.", "Sweater weather engaged."
+            ],
+            "5_to_10": [ // 5 to 10
+                "Definitely spring vibes.", "I saw a brave person in shorts.", "The grass is looking greener.",
+                "You can leave the hat at home.", "Vitamin D absorption initialized.", "It smells like wet dirt and growth.",
+                "Convertible top down? Maybe not yet.", "A light breeze and a dream.", "The snow is a distant memory.",
+                "Puddles are drying up.", "Great day for a jog.", "I think I saw a bug.",
+                "The heater is off.", "Windows open for fresh air.", "It feels like hope.",
+                "Jacket? Maybe just a vest.", "The sun has some power now.", "Birds are being loud.",
+                "Nature is rebooting.", "Perfect football weather.", "Crisp mornings, nice afternoons.",
+                "You don't need to warm up the car.", "Go for a bike ride.", "The playground is open.",
+                "It's actually nice.", "Not too hot, not too cold.", "Enjoy the mildness.",
+                "Spring has sprung.", "The daffodils are waking up.", "A lovely day."
+            ],
+            "10_to_15": [ // 10 to 15
+                "Officially T-shirt weather (if you're brave).", "The bees are back. Look busy.", "This is why we endure the winter.",
+                "Everyone is suddenly in a good mood.", "The grass needs cutting. Sorry.", "A perfect day for procrastination.",
+                "Ditch the jacket, keep the sunglasses.", "It’s nice. Suspiciously nice.", "The great outdoors is actually great today.",
+                "Picnic weather (ants invited).", "The air smells like cut grass and allergies.", "Productivity is plummeting.",
+                "Even the pavement looks happy.", "Time to find out if the AC still works.", "Comfortable. Like a favorite old chair.",
+                "Nature is showing off.", "Get outside before it changes its mind.", "Perfect sleeping weather.",
+                "Shorts are making a comeback.", "It’s a 'wash the car' kind of day.", "I might actually exercise. Maybe.",
+                "The sun is flirting with us.", "Breeze is on point.", "Ideal conditions for doing absolutely nothing.",
+                "Sensible weather for sensible people.", "Enjoy it while it lasts.", "Patio beers are mandatory.",
+                "Frisbee weather.", "Socks and sandals? Still no.", "A solid 7/10 day."
+            ],
+            "15_to_20": [ // 15 to 20
+                "Room temperature world.", "Windows down, volume up.", "Absolute perfection.",
+                "You don't need a jacket. Period.", "The sun feels like a warm hug.", "I could nap in this weather.",
+                "Barbecue preparations are underway.", "The flowers are popping.", "It's glorious out there.",
+                "Why are we working?", "This is the weather they promised us.", "Not a cloud in the sky (hopefully).",
+                "Warm, but not sweaty.", "The air is sweet.", "Everything is green.",
+                "Go find a hammock.", "Ice coffee season begins.", "You can wear whatever you want.",
+                "The evening will be beautiful.", "Stargazing weather.", "Camping vibes.",
+                "Mosquitoes are waking up. Watch out.", "Perfect for golf.", "Or minigolf.",
+                "Or just sitting.", "Life is good.", "Enjoy the Vitamin D.",
+                "The best kind of weather.", "No complaints allowed.", "Pure bliss."
+            ],
+            "20_to_25": [ // 20 to 25
+                "Summer vibes have entered the chat.", "It’s getting warm. Don't complain yet.", "Ice cream is a valid meal replacement.",
+                "The sun is getting a little aggressive.", "Beach day? Or just backyard hose day?", "Sunscreen is not a suggestion.",
+                "Turning into a lizard. Seeking rocks.", "Hydrate or diedrate.", "The car steering wheel is hot.",
+                "Sweater weather is officially cancelled.", "Shadows are your best friend now.", "A glorious day to be solar powered.",
+                "If you aren't outside, what are you doing?", "Barbecue season is mandatory.", "Warm enough to fry an egg? Not yet.",
+                "The mosquitoes have organized a militia.", "Sticky weather approaches.", "I’m glowing. It’s definitely not sweat.",
+                "Fan speed: Medium.", "The pavement is radiating nicely.", "Flip flops are legal footwear everywhere.",
+                "Sunglasses are structural now.", "It's lovely, hot, and slightly gross.", "Air conditioning is the greatest invention.",
+                "Don't leave the chocolate in the car.", "Convertible weather (or open sunroof).", "Keep the beverages cold.",
+                "You wanted heat, you got it.", "The flowers are happy. I'm melting slightly.", "Golden hour lasts all day."
+            ],
+            "25_to_30": [ // 25 to 30
+                "It's getting sticky out here.", "Seeking shade and cold beverages.", "Why is the sun so angry?",
+                "Air conditioning is my best friend.", "Don't touch the metal slide.", "The asphalt is lava.",
+                "I'm sweating in places I didn't know I had.", "It's a scorcher.", "Pool day. Mandatory.",
+                "My clothes are sticking to me.", "Heat wave alert.", "Drink water. No, more water.",
+                "The air is heavy.", "Siesta time.", "Too hot to move.",
+                "I miss the breeze.", "Fans are sold out everywhere.", "Popsicles are melting instantly.",
+                "Shorts are the only option.", "It's oppressive.", "Summer is hitting hard.",
+                "The car is an oven.", "Baking cookies on the dashboard.", "Find a lake.",
+                "Sweat is just fat crying, right?", "I'm wilting.", "Hot hot hot.",
+                "Even the bugs are lazy.", "Thunderstorm brewing?", "Tropical vibes."
+            ],
+            "above_30": [ // Above 30
+                "We are living on the sun.", "The floor is lava. Literally.", "Sweating is my new hobby.",
+                "Why is the air chewing on me?", "I saw a hobbit throw a ring into my backyard.", "Do not touch the seatbelt buckle.",
+                "It’s not the heat, it’s the... no, it's the heat.", "Satan called, he wants his weather back.", "Melting. Send ice.",
+                "I am currently a puddle.", "AC is working harder than me.", "Eggs are frying on the sidewalk.",
+                "The birds are walking. It's too hot to fly.", "My clothes are attacking me.", "Deodorant has failed us all.",
+                "Hot? No, this is a kiln.", "Soup weather? No. Ice cube weather.", "Shower. Sweat. Repeat.",
+                "Even the shade is hot.", "I'm moving to the fridge.", "Don't ask me to do things.",
+                "Nature is preheating the oven.", "It is offensively hot.", "My brain has melted.",
+                "Drink water. Then drink more water.", "Heatstroke is so trendy right now.", "Is it hot or is it the apocalypse?",
+                "Fan speed: Helicopter mode.", "I miss winter. I said it.", "Error 404: Cold air not found."
+            ]
+        };
+
         function calculatePressureKPa(rawHPa, tempC) {
             const seaLevelPressHPa = rawHPa * Math.pow(1 - (0.0065 * ELEVATION_METERS) / (tempC + (0.0065 * ELEVATION_METERS) + 273.15), -5.257);
             return seaLevelPressHPa / 10;
+        }
+
+        function updateQuote(tempC) {
+            let key = "";
+            if (tempC < -30) key = "below_n30";
+            else if (tempC < -25) key = "n30_to_n25";
+            else if (tempC < -20) key = "n25_to_n20";
+            else if (tempC < -15) key = "n20_to_n15";
+            else if (tempC < -10) key = "n15_to_n10";
+            else if (tempC < -5) key = "n10_to_n5";
+            else if (tempC < 0) key = "n5_to_0";
+            else if (tempC < 5) key = "0_to_5";
+            else if (tempC < 10) key = "5_to_10";
+            else if (tempC < 15) key = "10_to_15";
+            else if (tempC < 20) key = "15_to_20";
+            else if (tempC < 25) key = "20_to_25";
+            else if (tempC < 30) key = "25_to_30";
+            else key = "above_30";
+
+            const quotes = WEATHER_QUOTES[key];
+            if (quotes && quotes.length > 0) {
+                const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+                document.getElementById('quote-display').innerText = `"${randomQuote}"`;
+            } else {
+                document.getElementById('quote-display').innerText = "";
+            }
         }
 
         async function refreshAll() {
@@ -307,6 +523,9 @@
                 const dateObj = new Date(current.date);
                 dateDisplay.innerText = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 document.getElementById('last-updated').innerText = "Last Sync: " + new Date().toLocaleTimeString();
+
+                // UPDATE QUOTE BASED ON TEMP
+                updateQuote(tempC);
 
                 updateTempChart(historyToUse);
                 updatePressureChart(historyToUse);
