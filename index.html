@@ -241,8 +241,12 @@
         // --- CONFIGURATION ---
         const scriptURL = "https://script.google.com/macros/s/AKfycbxEPVT6M3sImboFp8V6xo7tElaTzZ3As8PZxFxwm4NQkYyILhzdnUe7OevS3fqSXw/exec"; 
         const ELEVATION_METERS = 675; 
+        
+        // --- CALIBRATION ---
+        const HUMIDITY_OFFSET = 20; // Added 20% to match local station (65% -> 85%)
+        // -------------------
+
         const externalWeatherURL = "https://api.open-meteo.com/v1/forecast?latitude=51.467&longitude=-109.157&current=weather_code,is_day&daily=sunrise,sunset&timezone=auto";
-        // ---------------------
 
         function calculatePressureKPa(rawHPa, tempC) {
             const seaLevelPressHPa = rawHPa * Math.pow(1 - (0.0065 * ELEVATION_METERS) / (tempC + (0.0065 * ELEVATION_METERS) + 273.15), -5.257);
@@ -280,6 +284,12 @@
                 
                 const rawPressHPa = parseFloat(current.press);
                 const pressKPa = calculatePressureKPa(rawPressHPa, tempC);
+                
+                // --- APPLY HUMIDITY OFFSET ---
+                let correctedHumid = parseFloat(current.humid) + HUMIDITY_OFFSET;
+                // Clamp between 0 and 100
+                if (correctedHumid > 100) correctedHumid = 100;
+                if (correctedHumid < 0) correctedHumid = 0;
 
                 const temps24h = historyToUse.map(d => parseFloat(d.temp));
                 const high24 = Math.max(...temps24h);
@@ -289,7 +299,9 @@
                 document.getElementById('temp-f').innerText = tempF.toFixed(1) + "°F";
                 document.getElementById('high-24').innerText = high24.toFixed(1) + "°C";
                 document.getElementById('low-24').innerText = low24.toFixed(1) + "°C";
-                document.getElementById('humid').innerText = parseFloat(current.humid).toFixed(0) + "%";
+                
+                document.getElementById('humid').innerText = correctedHumid.toFixed(0) + "%";
+                
                 document.getElementById('press').innerText = pressKPa.toFixed(2); 
                 
                 const dateObj = new Date(current.date);
@@ -483,8 +495,8 @@
                         }, 
                         y: { 
                             display: true,
-                            min: 98,  // Adjusted for better visibility
-                            max: 105, 
+                            min: 98,  // Fixed range start
+                            max: 105, // Fixed range end
                             title: { display: true, text: 'Pressure (kPa)', color: '#555', font: { size: 12 } },
                             grid: { color: '#333', borderDash: [5, 5] }, 
                             ticks: { color: '#888' }
