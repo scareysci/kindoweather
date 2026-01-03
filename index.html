@@ -163,7 +163,8 @@
             gap: 10px;
         }
 
-        button.action-btn {
+        /* Shared styles for buttons and links */
+        .action-btn {
             background: var(--card);
             border: 1px solid #333;
             color: var(--accent);
@@ -175,22 +176,24 @@
             display: flex;
             align-items: center;
             gap: 5px;
+            text-decoration: none; /* For <a> tags */
+            font-family: inherit;
         }
 
-        button.action-btn:hover {
+        .action-btn:hover {
             background: var(--hover);
             border-color: var(--accent);
         }
 
-        button.action-btn:active {
+        .action-btn:active {
             transform: scale(0.95);
         }
 
-        button.summary-btn {
+        .summary-btn {
             color: var(--quote);
         }
         
-        button.summary-btn:hover {
+        .summary-btn:hover {
             border-color: var(--quote);
         }
 
@@ -294,6 +297,8 @@
         <div class="status-bar">
             <div id="last-updated">Waiting for data...</div>
             <div class="control-group">
+                <!-- Added Link to Trends Page -->
+                <a href="trends.html" class="action-btn">📅 History</a>
                 <button class="action-btn summary-btn" onclick="generateSummary()">📋 Copy Summary</button>
                 <button class="action-btn refresh-btn" onclick="refreshAll()">↻ Refresh</button>
             </div>
