@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kindo Weather - Trends</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Shared Theme from index.html */
+        :root { 
+            --bg: #121212; 
+            --card: #1e1e1e; 
+            --text: #ffffff; 
+            --accent: #4facfe; 
+            --gray: #aaaaaa; 
+            --hover: #2c2c2c;
+            --hot: #ff6b6b;
+            --cold: #4facfe;
+            --border: #333;
+        }
+        
+        body { 
+            background-color: var(--bg); 
+            color: var(--text); 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            text-align: center; 
+        }
+
+        .container { max-width: 800px; margin: 0 auto; }
+
+        /* Header & Navigation */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        h1 { margin: 0; font-size: 24px; font-weight: 600; }
+
+        a.back-btn {
+            text-decoration: none;
+            color: var(--accent);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            transition: all 0.2s;
+            background: var(--card);
+        }
+
+        a.back-btn:hover { background: var(--hover); border-color: var(--accent); }
+
+        /* Card Styles */
+        .card { 
+            background-color: var(--card); 
+            border-radius: 20px; 
+            padding: 20px; 
+            margin-bottom: 30px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
+        }
+
+        .section-title {
+            color: var(--gray);
+            font-size: 16px;
+            font-weight: 500;
+            margin: 0 0 20px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-align: left;
+        }
+
+        /* Chart Container */
+        .chart-wrapper {
+            height: 300px;
+            width: 100%;
+        }
+
+        /* Calendar Styles */
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .month-label { font-size: 18px; font-weight: bold; }
+
+        .cal-nav-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 5px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        .cal-nav-btn:hover { background: var(--hover); }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+
+        .weekday-header {
+            color: var(--gray);
+            font-size: 12px;
+            padding: 10px 0;
+            text-transform: uppercase;
+        }
+
+        .day-cell {
+            background: #252525;
+            min-height: 85px; 
+            border-radius: 8px;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            position: relative;
+        }
+
+        .day-cell.empty { background: transparent; }
+
+        .day-number {
+            font-size: 14px;
+            color: var(--gray);
+            margin-bottom: 8px;
+            align-self: flex-end;
+            width: 100%;
+            text-align: right;
+            border-bottom: 1px solid #333;
+            padding-bottom: 4px;
+        }
+
+        .day-cell.today { border: 1px solid var(--accent); }
+
+        /* Updated Text Styles for High/Low */
+        .temp-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .daily-high { color: var(--hot); font-weight: bold; }
+        .daily-low { color: var(--cold); font-weight: bold; }
+        
+        .label { 
+            font-weight: normal; 
+            color: #888; 
+            font-size: 10px; 
+            margin-right: 4px;
+            text-transform: uppercase;
+        }
+        
+        .no-data { font-size: 10px; color: #444; margin-top: 10px; }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            color: var(--accent);
+            font-size: 20px;
+        }
+        .hidden { display: none; }
+
+    </style>
+</head>
+<body>
+
+    <div id="loading" class="loading-overlay">Loading History...</div>
+
+    <div class="container">
+        <header>
+            <h1>Historical Trends</h1>
+            <a href="index.html" class="back-btn">← Dashboard</a>
+        </header>
+
+        <!-- 14 Day Trend Chart -->
+        <div class="card">
+            <h3 class="section-title">Last 14 Days (High / Low)</h3>
+            <div class="chart-wrapper">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Monthly Calendar -->
+        <div class="card">
+            <div class="calendar-header">
+                <button class="cal-nav-btn" onclick="changeMonth(-1)">❮</button>
+                <div id="monthLabel" class="month-label">January 2024</div>
+                <button class="cal-nav-btn" onclick="changeMonth(1)">❯</button>
+            </div>
+            
+            <div class="calendar-grid">
+                <!-- Headers -->
+                <div class="weekday-header">Sun</div>
+                <div class="weekday-header">Mon</div>
+                <div class="weekday-header">Tue</div>
+                <div class="weekday-header">Wed</div>
+                <div class="weekday-header">Thu</div>
+                <div class="weekday-header">Fri</div>
+                <div class="weekday-header">Sat</div>
+                
+                <!-- Days will be injected here -->
+                <div id="calendarDays" style="display: contents;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        // We now append ?action=trends to fetch the specific tab data
+        const scriptBaseURL = "https://script.google.com/macros/s/AKfycbxEPVT6M3sImboFp8V6xo7tElaTzZ3As8PZxFxwm4NQkYyILhzdnUe7OevS3fqSXw/exec";
+        const trendURL = scriptBaseURL + "?action=trends";
+        const TEMP_OFFSET = -1.5; // Calibration
+
+        // Global State
+        let allDailyData = {}; 
+        let currentCalendarDate = new Date();
+
+        // Custom Plugin to Draw the "Freezing Line" at 0
+        const freezingLinePlugin = {
+            id: 'freezingLine',
+            beforeDraw: (chart) => {
+                const { ctx, scales: { y } } = chart;
+                const zeroY = y.getPixelForValue(0);
+
+                // Only draw if 0 is within the visible area
+                if (zeroY >= y.top && zeroY <= y.bottom) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(chart.chartArea.left, zeroY);
+                    ctx.lineTo(chart.chartArea.right, zeroY);
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'; // Bright, slightly transparent line
+                    ctx.setLineDash([5, 5]); // Dashed line
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+        };
+
+        // 1. Fetch and Process Data
+        async function init() {
+            try {
+                // Fetch from the NEW endpoint
+                const response = await fetch(trendURL);
+                const rawData = await response.json();
+                
+                // Error handling for missing tab or script error
+                if (rawData.error) {
+                    alert("Script Error: " + rawData.error + "\n\nCheck if the 'Trends' tab exists in your Google Sheet.");
+                    document.getElementById('loading').innerText = "Script Error";
+                    return;
+                }
+
+                if (!Array.isArray(rawData)) throw new Error("Invalid Data");
+                
+                processData(rawData);
+                renderTrendChart();
+                renderCalendar();
+                
+                document.getElementById('loading').classList.add('hidden');
+            } catch (error) {
+                console.error(error);
+                document.getElementById('loading').innerText = "Error loading data.";
+            }
+        }
+
+        // 2. Aggregate Data by Day
+        function processData(data) {
+            if (data.length === 0) return;
+
+            // --- DIAGNOSTIC CHECK ---
+            // If the script returns 'temp' but not 'high', it means the script hasn't been redeployed
+            if (data[0].high === undefined && data[0].temp !== undefined) {
+                alert("⚠️ SCRIPT VERSION MISMATCH ⚠️\n\nThe website is receiving 'Raw Data' instead of 'Trends'.\n\nThis means the Google Script was updated but NOT redeployed as a 'New Version'.\n\nTO FIX:\n1. Go to Google Apps Script\n2. Click 'Deploy' > 'Manage Deployments'\n3. Click the pencil icon ✏️\n4. Change Version to 'New Version'\n5. Click 'Deploy'");
+                return;
+            }
+
+            // The "Trends" tab returns [{date: "...", high: X, low: Y}, ...]
+            // We map it to our format and apply calibration.
+            data.forEach(entry => {
+                const dateObj = new Date(entry.date);
+                
+                // Format Date Key "YYYY-MM-DD" in LOCAL TIME to match calendar
+                const year = dateObj.getFullYear();
+                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const day = String(dateObj.getDate()).padStart(2, '0');
+                const dateKey = `${year}-${month}-${day}`;
+
+                // Apply Calibration to the pre-calculated High/Low
+                const high = parseFloat(entry.high) + TEMP_OFFSET;
+                const low = parseFloat(entry.low) + TEMP_OFFSET;
+
+                // Store in dictionary for easy lookup
+                allDailyData[dateKey] = { high: high, low: low };
+            });
+        }
+
+        // 3. Render Line Chart (Last 14 Days)
+        function renderTrendChart() {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            
+            // Get last 14 dates from the available data
+            const dates = Object.keys(allDailyData).sort();
+            const recentDates = dates.slice(-14);
+            
+            // Format labels
+            const labels = recentDates.map(d => {
+                const [y, m, dNum] = d.split('-');
+                const date = new Date(y, m - 1, dNum); 
+                return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            });
+
+            const highs = recentDates.map(d => allDailyData[d].high);
+            const lows = recentDates.map(d => allDailyData[d].low);
+
+            new Chart(ctx, {
+                type: 'line', 
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'High',
+                            data: highs,
+                            borderColor: '#ff6b6b',
+                            backgroundColor: '#ff6b6b',
+                            borderWidth: 3,
+                            tension: 0.4, // Smooth curve
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: '#1e1e1e', // Dark center for points
+                            pointBorderColor: '#ff6b6b'
+                        },
+                        {
+                            label: 'Low',
+                            data: lows,
+                            borderColor: '#4facfe',
+                            backgroundColor: '#4facfe',
+                            borderWidth: 3,
+                            tension: 0.4, // Smooth curve
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: '#1e1e1e', // Dark center for points
+                            pointBorderColor: '#4facfe'
+                        }
+                    ]
+                },
+                plugins: [freezingLinePlugin], // Add the freezing line plugin
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: { 
+                            position: 'bottom', 
+                            labels: { color: '#fff', font: { size: 14 } } 
+                        },
+                        tooltip: {
+                            backgroundColor: '#1e1e1e',
+                            titleColor: '#fff',
+                            bodyColor: '#aaa',
+                            borderColor: '#333',
+                            borderWidth: 1,
+                            padding: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + ' °C';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            grid: { display: false },
+                            ticks: { color: '#aaa' }
+                        },
+                        y: {
+                            grid: { color: '#333', borderDash: [5, 5] },
+                            ticks: { color: '#aaa' },
+                            // Force chart to always include 0 in the view
+                            suggestedMin: 0,
+                            suggestedMax: 0 
+                        }
+                    }
+                }
+            });
+        }
+
+        // 4. Render Calendar Logic
+        function renderCalendar() {
+            const container = document.getElementById('calendarDays');
+            const label = document.getElementById('monthLabel');
+            container.innerHTML = ""; // Clear existing
+
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+
+            // Update Label
+            label.innerText = currentCalendarDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+            // Logic to find first day of month and days in month
+            const firstDayIndex = new Date(year, month, 1).getDay(); // 0 = Sun
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            // Today string for highlighting
+            const now = new Date();
+            const todayKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+            // 1. Padding for empty days before start of month
+            for (let i = 0; i < firstDayIndex; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = "day-cell empty";
+                container.appendChild(emptyCell);
+            }
+
+            // 2. Actual Days
+            for (let day = 1; day <= daysInMonth; day++) {
+                const cell = document.createElement('div');
+                cell.className = "day-cell";
+                
+                // Construct Date Key "YYYY-MM-DD"
+                const monthStr = (month + 1).toString().padStart(2, '0');
+                const dayStr = day.toString().padStart(2, '0');
+                const dateKey = `${year}-${monthStr}-${dayStr}`;
+
+                // Check for "Today"
+                if (dateKey === todayKey) cell.classList.add('today');
+
+                // Day Number
+                const numDiv = document.createElement('div');
+                numDiv.className = "day-number";
+                numDiv.innerText = day;
+                cell.appendChild(numDiv);
+
+                // Data Display
+                const data = allDailyData[dateKey];
+                if (data) {
+                    // High Row
+                    const highRow = document.createElement('div');
+                    highRow.className = "temp-row daily-high";
+                    highRow.innerHTML = `<span class="label">High</span> ${data.high.toFixed(1)}°`;
+                    
+                    // Low Row
+                    const lowRow = document.createElement('div');
+                    lowRow.className = "temp-row daily-low";
+                    lowRow.innerHTML = `<span class="label">Low</span> ${data.low.toFixed(1)}°`;
+
+                    cell.appendChild(highRow);
+                    cell.appendChild(lowRow);
+                } else {
+                    const noDataDiv = document.createElement('div');
+                    noDataDiv.className = "no-data";
+                    noDataDiv.innerText = "-";
+                    cell.appendChild(noDataDiv);
+                }
+
+                container.appendChild(cell);
+            }
+        }
+
+        function changeMonth(delta) {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+        // Start
+        init();
+
+    </script>
+</body>
+</html>
