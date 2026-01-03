@@ -19,6 +19,7 @@
             --cold: #4facfe;
             --sun: #f6d365;
             --quote: #00e5ff;
+            --success: #00b894;
         }
         body { 
             background-color: var(--bg); 
@@ -148,6 +149,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
             margin-top: 20px;
             color: #555;
             font-size: 12px;
@@ -155,7 +158,12 @@
             margin-bottom: 40px;
         }
 
-        button.refresh-btn {
+        .control-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        button.action-btn {
             background: var(--card);
             border: 1px solid #333;
             color: var(--accent);
@@ -164,20 +172,57 @@
             cursor: pointer;
             font-size: 12px;
             transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
 
-        button.refresh-btn:hover {
+        button.action-btn:hover {
             background: var(--hover);
             border-color: var(--accent);
         }
 
-        button.refresh-btn:active {
+        button.action-btn:active {
             transform: scale(0.95);
+        }
+
+        button.summary-btn {
+            color: var(--quote);
+        }
+        
+        button.summary-btn:hover {
+            border-color: var(--quote);
         }
 
         .loading {
             opacity: 0.5;
             pointer-events: none;
+        }
+        
+        /* Toast notification for copy */
+        .toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: var(--success);
+            color: #fff;
+            text-align: center;
+            border-radius: 50px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 14px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+        }
+
+        .toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
         }
     </style>
 </head>
@@ -248,9 +293,15 @@
 
         <div class="status-bar">
             <div id="last-updated">Waiting for data...</div>
-            <button class="refresh-btn" onclick="refreshAll()">↻ Refresh</button>
+            <div class="control-group">
+                <button class="action-btn summary-btn" onclick="generateSummary()">📋 Copy Summary</button>
+                <button class="action-btn refresh-btn" onclick="refreshAll()">↻ Refresh</button>
+            </div>
         </div>
     </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">Status copied to clipboard!</div>
 
     <script>
         // --- CONFIGURATION ---
@@ -258,14 +309,16 @@
         const ELEVATION_METERS = 675; 
         
         // --- CALIBRATION ---
-        const HUMIDITY_OFFSET = 20; // Added 20% to match local station (65% -> 85%)
+        const HUMIDITY_OFFSET = 20; // Added 20% to match local station
+        const TEMP_OFFSET = -1.5;   // Subtract 1.5 degrees to match local station
+        const GRAPH_SMOOTHING_WINDOW = 5; // Higher number = smoother/flatter graph (3-7 is good)
         // -------------------
 
         const externalWeatherURL = "https://api.open-meteo.com/v1/forecast?latitude=51.467&longitude=-109.157&current=weather_code,is_day&daily=sunrise,sunset&timezone=auto";
 
-        // --- WITTY QUOTES DATABASE (5-Degree Increments) ---
+        // --- WITTY QUOTES DATABASE ---
         const WEATHER_QUOTES = {
-            "below_n30": [ // Below -30
+            "below_n30": [ 
                 "The air hurts my face. Why do I live here?", "Even the penguins are asking for a transfer.", "Don't breathe too deep, your lungs might shatter.",
                 "Instant coffee? No, instant ice.", "I saw a polar bear buying a parka.", "The thermometer just gave up and went inside.",
                 "It’s not cold, it’s 'terminally crisp'.", "We are currently located on the surface of Pluto.", "If you go outside, you will become a statue.",
@@ -278,7 +331,7 @@
                 "Survival mode: Activated.", "Forget layers. Wear the whole closet.", "I saw a bird hitchhiking south.",
                 "Science has stopped working. It's just cold now.", "I stepped outside and my eyebrows snapped off."
             ],
-            "n30_to_n25": [ // -30 to -25
+            "n30_to_n25": [ 
                 "It's colder than a politician's heart out there.", "Your shadow froze to the ground.", "If you can read this, go back inside.",
                 "I’m wearing three pairs of socks and I’m still mad.", "The weather forecast is 'No'.", "My car made a noise I’ve never heard before.",
                 "The only thing running today is my nose.", "Brace yourself, the electric bill is coming.", "It’s officially 'I can’t feel my toes' degrees.",
@@ -291,7 +344,7 @@
                 "Extreme shivering is my cardio today.", "Go outside? In this economy?", "Hello darkness my old friend... and frostbite.",
                 "I'm considering burning my furniture for warmth.", "The smoke from the chimney froze solid."
             ],
-            "n25_to_n20": [ // -25 to -20
+            "n25_to_n20": [ 
                 "It's brisk. And by brisk, I mean painful.", "A good day to pretend you're a bear.", "Cold enough to ruin your plans, warm enough to give you hope.",
                 "The car heater is trying its best.", "It’s chilly, but at least there are no mosquitoes.", "I’ve had popsicles warmer than this.",
                 "Respect the toque.", "Visible breath is nature's exhaust pipe.", "It's not that cold, said the liar.", "Winter is hugging us a little too tight.",
@@ -304,7 +357,7 @@
                 "Good luck with that zipper.", "Cold hands, warm heart. Freezing feet.",
                 "My face hurts, and I haven't even gone out yet.", "It's a 'delivery pizza' kind of night."
             ],
-            "n20_to_n15": [ // -20 to -15
+            "n20_to_n15": [ 
                 "It's nippier than a piranha in a kiddie pool.", "The dog went out, paused, and came right back in.", "Nose hair freezing territory.", 
                 "You know it's cold when the snow crunches loudly.", "Exposed skin is a bad idea.", "My car seat is a block of ice.",
                 "I miss the feeling of warmth.", "Winter has settled in for the long haul.", "Don't touch the door handle without gloves.",
@@ -316,7 +369,7 @@
                 "The heater is the MVP today.", "Frost on the windows, frost in my heart.", "Stay warm, stay sane.",
                 "It's not horrible, but it's not good.", "Could be worse. Could be... actually no, this is bad.", "Chilly enough to complain."
             ],
-            "n15_to_n10": [ // -15 to -10
+            "n15_to_n10": [ 
                 "Standard winter setting enabled.", "It's cold, but you'll survive.", "Good skiing weather, if you're into that.",
                 "The snow isn't melting anytime soon.", "You can leave the heavy parka, maybe.", "A regular day in the freezer.",
                 "Refreshing? Let's go with refreshing.", "Your cheeks will turn pink.", "Hot chocolate weather confirmed.",
@@ -328,7 +381,7 @@
                 "Keep moving and you'll be fine.", "A scarf would be a smart choice.", "The cold is annoying, but polite.",
                 "Winter is behaving itself, mostly.", "Cold enough to see your breath.", "Just another day in the fridge."
             ],
-            "n10_to_n5": [ // -10 to -5
+            "n10_to_n5": [ 
                 "It's almost tolerable.", "The ice is thinking about melting. Maybe.", "You can unzip the coat a little.",
                 "Hockey weather!", "Perfect for a brisk walk.", "The snow is getting sticky.",
                 "Is it warming up? Or am I delirious?", "Not bad for winter.", "I've felt colder glances from my ex.",
@@ -340,7 +393,7 @@
                 "You might only need one pair of socks.", "It's brisk, baby!", "Manageable cold.",
                 "The wind is just a breeze now.", "Almost nice out.", "Acceptable outdoor conditions."
             ],
-            "n5_to_0": [ // -5 to 0
+            "n5_to_0": [ 
                 "We are in the 'Slush Zone'.", "The ice is melting... slowly.", "It’s messy weather. Bring a mop.",
                 "Is it rain? Is it snow? It's snain.", "Jacket open or jacket closed? The eternal struggle.", "The snow is getting heavy and regretful.",
                 "Grey skies and wet socks.", "The thermostat is teasing us.", "Perfect weather for losing a glove.",
@@ -352,7 +405,7 @@
                 "Mediocre winter day.", "If water could be indecisive, this is it.", "Beware the falling icicles.",
                 "Slippery when wet.", "It's a grey area.", "Damp and dreary."
             ],
-            "0_to_5": [ // 0 to 5
+            "0_to_5": [ 
                 "Is that... spring? Or a trick?", "Light jacket weather! Freedom!", "The birds are confused but singing anyway.",
                 "Coffee tastes better when you aren't shivering.", "Roll down the windows... halfway.", "It’s officially 'Meh' outside.",
                 "The sun actually feels warmish.", "Goodbye snow, hello mud.", "You might get away with just a hoodie.",
@@ -364,7 +417,7 @@
                 "Dew on the grass, hope in the air.", "You can finally feel your fingers again.", "Optimistic temperature.",
                 "The dog refuses to come inside now.", "Goldilocks zone of 'it's okay'.", "Sweater weather engaged."
             ],
-            "5_to_10": [ // 5 to 10
+            "5_to_10": [ 
                 "Definitely spring vibes.", "I saw a brave person in shorts.", "The grass is looking greener.",
                 "You can leave the hat at home.", "Vitamin D absorption initialized.", "It smells like wet dirt and growth.",
                 "Convertible top down? Maybe not yet.", "A light breeze and a dream.", "The snow is a distant memory.",
@@ -376,7 +429,7 @@
                 "It's actually nice.", "Not too hot, not too cold.", "Enjoy the mildness.",
                 "Spring has sprung.", "The daffodils are waking up.", "A lovely day."
             ],
-            "10_to_15": [ // 10 to 15
+            "10_to_15": [ 
                 "Officially T-shirt weather (if you're brave).", "The bees are back. Look busy.", "This is why we endure the winter.",
                 "Everyone is suddenly in a good mood.", "The grass needs cutting. Sorry.", "A perfect day for procrastination.",
                 "Ditch the jacket, keep the sunglasses.", "It’s nice. Suspiciously nice.", "The great outdoors is actually great today.",
@@ -388,7 +441,7 @@
                 "Sensible weather for sensible people.", "Enjoy it while it lasts.", "Patio beers are mandatory.",
                 "Frisbee weather.", "Socks and sandals? Still no.", "A solid 7/10 day."
             ],
-            "15_to_20": [ // 15 to 20
+            "15_to_20": [ 
                 "Room temperature world.", "Windows down, volume up.", "Absolute perfection.",
                 "You don't need a jacket. Period.", "The sun feels like a warm hug.", "I could nap in this weather.",
                 "Barbecue preparations are underway.", "The flowers are popping.", "It's glorious out there.",
@@ -400,7 +453,7 @@
                 "Or just sitting.", "Life is good.", "Enjoy the Vitamin D.",
                 "The best kind of weather.", "No complaints allowed.", "Pure bliss."
             ],
-            "20_to_25": [ // 20 to 25
+            "20_to_25": [ 
                 "Summer vibes have entered the chat.", "It’s getting warm. Don't complain yet.", "Ice cream is a valid meal replacement.",
                 "The sun is getting a little aggressive.", "Beach day? Or just backyard hose day?", "Sunscreen is not a suggestion.",
                 "Turning into a lizard. Seeking rocks.", "Hydrate or diedrate.", "The car steering wheel is hot.",
@@ -412,7 +465,7 @@
                 "Don't leave the chocolate in the car.", "Convertible weather (or open sunroof).", "Keep the beverages cold.",
                 "You wanted heat, you got it.", "The flowers are happy. I'm melting slightly.", "Golden hour lasts all day."
             ],
-            "25_to_30": [ // 25 to 30
+            "25_to_30": [ 
                 "It's getting sticky out here.", "Seeking shade and cold beverages.", "Why is the sun so angry?",
                 "Air conditioning is my best friend.", "Don't touch the metal slide.", "The asphalt is lava.",
                 "I'm sweating in places I didn't know I had.", "It's a scorcher.", "Pool day. Mandatory.",
@@ -424,7 +477,7 @@
                 "Sweat is just fat crying, right?", "I'm wilting.", "Hot hot hot.",
                 "Even the bugs are lazy.", "Thunderstorm brewing?", "Tropical vibes."
             ],
-            "above_30": [ // Above 30
+            "above_30": [ 
                 "We are living on the sun.", "The floor is lava. Literally.", "Sweating is my new hobby.",
                 "Why is the air chewing on me?", "I saw a hobbit throw a ring into my backyard.", "Do not touch the seatbelt buckle.",
                 "It’s not the heat, it’s the... no, it's the heat.", "Satan called, he wants his weather back.", "Melting. Send ice.",
@@ -441,6 +494,28 @@
         function calculatePressureKPa(rawHPa, tempC) {
             const seaLevelPressHPa = rawHPa * Math.pow(1 - (0.0065 * ELEVATION_METERS) / (tempC + (0.0065 * ELEVATION_METERS) + 273.15), -5.257);
             return seaLevelPressHPa / 10;
+        }
+
+        // --- SMOOTHING FUNCTION ---
+        // Uses a simple moving average to flatten jagged lines
+        function smoothData(data, windowSize) {
+            if (data.length < windowSize) return data;
+            const smoothed = [];
+            const halfWindow = Math.floor(windowSize / 2);
+
+            for (let i = 0; i < data.length; i++) {
+                let sum = 0;
+                let count = 0;
+                // Look back and forward to average
+                for (let j = i - halfWindow; j <= i + halfWindow; j++) {
+                    if (j >= 0 && j < data.length) {
+                        sum += data[j];
+                        count++;
+                    }
+                }
+                smoothed.push(sum / count);
+            }
+            return smoothed;
         }
 
         function updateQuote(tempC) {
@@ -492,10 +567,19 @@
 
                 const oneDayAgo = new Date().getTime() - (24 * 60 * 60 * 1000);
                 const last24HoursData = data.filter(d => new Date(d.date).getTime() > oneDayAgo);
-                const historyToUse = last24HoursData.length > 0 ? last24HoursData : data;
+                let historyToUse = last24HoursData.length > 0 ? last24HoursData : data;
+
+                // --- APPLY CALIBRATION TO ALL HISTORY ---
+                // We create a new array with calibrated temps so charts and current data align
+                historyToUse = historyToUse.map(d => {
+                    return {
+                        ...d,
+                        temp: parseFloat(d.temp) + TEMP_OFFSET
+                    };
+                });
 
                 const current = historyToUse[historyToUse.length - 1];
-                const tempC = parseFloat(current.temp);
+                const tempC = current.temp; // Already a number and calibrated
                 const tempF = (tempC * 9/5) + 32;
                 
                 const rawPressHPa = parseFloat(current.press);
@@ -507,7 +591,7 @@
                 if (correctedHumid > 100) correctedHumid = 100;
                 if (correctedHumid < 0) correctedHumid = 0;
 
-                const temps24h = historyToUse.map(d => parseFloat(d.temp));
+                const temps24h = historyToUse.map(d => d.temp);
                 const high24 = Math.max(...temps24h);
                 const low24 = Math.min(...temps24h);
 
@@ -558,6 +642,43 @@
                 console.error("External Data Error:", error);
                 document.getElementById('sky-text').innerText = "--";
             }
+        }
+
+        // --- NEW: GENERATE SUMMARY ---
+        function generateSummary() {
+            const loc = "Kindersley";
+            const temp = document.getElementById('temp').innerText;
+            const tempF = document.getElementById('temp-f').innerText;
+            const condition = document.getElementById('sky-text').innerText;
+            const icon = document.getElementById('sky-icon').innerText || "🌡️";
+            const high = document.getElementById('high-24').innerText;
+            const low = document.getElementById('low-24').innerText;
+            const humid = document.getElementById('humid').innerText;
+            const press = document.getElementById('press').innerText;
+            const quote = document.getElementById('quote-display').innerText;
+            
+            const summary = 
+`🌡️ Kindo Weather Update 🌡️
+📍 ${loc}
+${icon} ${condition}
+🌡️ ${temp}°C (${tempF})
+📈 High: ${high} | 📉 Low: ${low}
+💧 Humidity: ${humid}
+💨 Pressure: ${press} kPa
+💬 ${quote}`;
+
+            // Copy to clipboard safely
+            const el = document.createElement('textarea');
+            el.value = summary;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+
+            // Show Toast
+            const toast = document.getElementById('toast');
+            toast.className = "toast show";
+            setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 3000);
         }
 
         function getWeatherDescription(code) {
@@ -617,11 +738,16 @@
         function updateTempChart(data) {
             const ctx = document.getElementById('weatherChart').getContext('2d');
             const labels = data.map(d => new Date(d.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
-            const temps = data.map(d => parseFloat(d.temp));
+            
+            // RAW Data
+            const rawTemps = data.map(d => d.temp);
+            
+            // SMOOTHED Data
+            const smoothedTemps = smoothData(rawTemps, GRAPH_SMOOTHING_WINDOW);
             
             // Calculate Min/Max for Dynamic Range (Min - 10, Max + 10)
-            const maxVal = Math.max(...temps);
-            const minVal = Math.min(...temps);
+            const maxVal = Math.max(...rawTemps);
+            const minVal = Math.min(...rawTemps);
 
             if (myTempChart) myTempChart.destroy();
 
@@ -631,7 +757,7 @@
                     labels: labels,
                     datasets: [{
                         label: 'Temperature (°C)',
-                        data: temps,
+                        data: smoothedTemps, // Use smoothed data
                         borderColor: '#4facfe',
                         backgroundColor: (context) => {
                             const ctx = context.chart.ctx;
@@ -675,7 +801,12 @@
         function updatePressureChart(data) {
             const ctx = document.getElementById('pressureChart').getContext('2d');
             const labels = data.map(d => new Date(d.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
-            const pressures = data.map(d => calculatePressureKPa(parseFloat(d.press), parseFloat(d.temp)));
+            
+            // Pressure also depends on Temp, so these are using the already Calibrated temps
+            const pressures = data.map(d => calculatePressureKPa(parseFloat(d.press), d.temp));
+            
+            // Optional: Smooth pressure too if you like, but pressure changes slowly anyway
+            const smoothedPressures = smoothData(pressures, 3);
 
             if (myPressureChart) myPressureChart.destroy();
 
@@ -685,7 +816,7 @@
                     labels: labels,
                     datasets: [{
                         label: 'Pressure (kPa)',
-                        data: pressures,
+                        data: smoothedPressures,
                         borderColor: '#bb86fc', 
                         backgroundColor: (context) => {
                             const ctx = context.chart.ctx;
