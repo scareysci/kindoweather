@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Bark of the West</title>
+    <style>
+        /* RETRO TERMINAL STYLING 
+           I'm simulating a monochrome CRT monitor here. 
+           Scanlines included.
+        */
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+        body {
+            background-color: #050505;
+            color: #4AF626; /* Classic Green Phosphor */
+            font-family: 'VT323', monospace;
+            margin: 0;
+            padding: 20px;
+            /* Use dynamic viewport height to handle mobile browser bars */
+            height: 100vh;
+            height: 100dvh; 
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            text-shadow: 0 0 5px #4AF626, 0 0 10px #4AF626; /* The Glow */
+        }
+
+        #crt-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        #game-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            border: 2px solid #4AF626;
+            padding: 20px;
+            box-sizing: border-box;
+            background-color: #000;
+            overflow: hidden; /* crucial for internal scrolling */
+            position: relative;
+        }
+
+        #output {
+            flex: 1;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-bottom: 10px;
+            font-size: 1.4rem; /* Bigger font for readability */
+            line-height: 1.3;
+            padding-bottom: 20px;
+            /* Smooth scrolling */
+            scroll-behavior: smooth;
+        }
+
+        /* Scrollbar styling for that sleek retro look */
+        #output::-webkit-scrollbar {
+            width: 12px;
+        }
+        #output::-webkit-scrollbar-track {
+            background: #000;
+        }
+        #output::-webkit-scrollbar-thumb {
+            background: #4AF626;
+            border: 2px solid #000;
+            border-radius: 4px;
+        }
+
+        #input-area {
+            display: flex;
+            align-items: center;
+            border-top: 2px dashed #4AF626;
+            padding-top: 15px;
+            padding-bottom: 5px;
+            flex-shrink: 0; /* Don't shrink the input area */
+            background: #000;
+        }
+
+        #prompt {
+            margin-right: 10px;
+            font-weight: bold;
+            font-size: 1.4rem;
+        }
+
+        input {
+            background: transparent;
+            border: none;
+            color: #4AF626;
+            font-family: 'VT323', monospace;
+            font-size: 1.4rem; /* Large font to prevent iOS zoom */
+            flex: 1;
+            outline: none;
+            text-shadow: 0 0 5px #4AF626;
+            border-radius: 0; /* Remove iOS default rounding */
+        }
+
+        .error { color: #ff3333; text-shadow: 0 0 5px #ff3333; }
+        .item { color: #ffff33; text-shadow: 0 0 5px #ffff33; }
+        .location { color: #33ffff; text-shadow: 0 0 5px #33ffff; text-transform: uppercase; border-bottom: 1px solid #33ffff; display: inline-block; margin-top: 10px; margin-bottom: 5px;}
+        .dialogue { font-style: italic; color: #ffccff; }
+
+        /* Mobile tweaks */
+        @media (max-width: 600px) {
+            body { 
+                padding: 0; /* Full width on mobile */
+            }
+            #game-container { 
+                border: none; /* Remove border to save space */
+                border-top: 2px solid #4AF626; /* Keep top bar for style */
+                border-bottom: 2px solid #4AF626;
+                padding: 15px;
+            }
+            #output { 
+                font-size: 1.3rem; 
+            }
+            input {
+                font-size: 1.3rem; 
+            }
+            #input-area {
+                padding-top: 10px;
+                padding-bottom: 10px; 
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="crt-overlay"></div>
+
+    <div id="game-container">
+        <div id="output">Initializing Saskatchewan Geography Protocol...
+Loading Dog Logic...
+Done.
+
+WELCOME TO "THE BARK OF THE WEST".
+
+(Type 'start' to begin your adventure)</div>
+        <div id="input-area">
+            <span id="prompt">&gt;</span>
+            <input type="text" id="command-input" autofocus autocomplete="off">
+        </div>
+    </div>
+
+    <script>
+        // --- GAME STATE ---
+        const gameState = {
+            currentLocation: "intro",
+            inventory: [],
+            pack: [], // Olaf, Honey, Bruno, Blu
+            playerDog: null,
+            scent: 0,
+            sacredBunnyFound: false,
+            gameEnded: false
+        };
+
+        // --- THE WORLD MAP (DATA STRUCTURES) ---
+        // In the 80s we used graph paper. Now we use JSON objects.
+        const locations = {
+            "kindersley": {
+                name: "Kindersley Hub",
+                description: "You are standing at the intersection of Main Street and the Highway in Kindersley. The wind is howling. The Goose Festival grounds are nearby. Roads lead in all directions.",
+                exits: { north: "coleville", west: "flaxcombe", south: "hoosier", east: "eatonia" },
+                items: [],
+                npc: "goose",
+                visited: false
+            },
+            "coleville": {
+                name: "Coleville Oil Patch",
+                description: "The smell of crude oil and hard work fills the air. Pumpjacks nod rhythmically in the distance like metal horses. There is a deep mud pit near the rig.",
+                exits: { south: "kindersley" },
+                items: ["grease"],
+                npc: "olaf", // Olaf is stuck here
+                reqSkill: null
+            },
+            "flaxcombe": {
+                name: "Flaxcombe Badlands",
+                description: "A desolate place. The terrain is rough and dry. The ghost of a boomtown whispers in the tall grass. A coyote watches you from a ridge.",
+                exits: { east: "kindersley", west: "marengo" },
+                items: ["old_bone"],
+                npc: "coyote",
+                reqSkill: "courage"
+            },
+            "marengo": {
+                name: "Marengo Elevator",
+                description: "A tiny community dominated by a massive, mystical Wooden Grain Elevator. It hums with an ancient prairie power. This feels... sacred.",
+                exits: { east: "flaxcombe" },
+                items: [],
+                npc: "badger",
+                reqSkill: "pack" // Need full pack to enter
+            },
+            "hoosier": {
+                name: "Hoosier Valley",
+                description: "Deep in the valley. The brush is thick here. It's easy to get lost without a good nose.",
+                exits: { north: "kindersley" },
+                items: [],
+                npc: "hound", // The other hound is here
+                reqSkill: "scent"
+            },
+            "eatonia": {
+                name: "Eatonia Rail Line",
+                description: "The rail line stretches to infinity. A herd of cattle has blocked the road. They look confused and stubborn.",
+                exits: { west: "kindersley" },
+                items: ["kibble"],
+                npc: "honey", // Honey is trying to herd cows
+                reqSkill: null
+            }
+        };
+
+        // --- DOG PROFILES ---
+        const dogs = {
+            "bruno": { name: "Bruno", breed: "Coonhound", desc: "Long ears, loud bark. Can smell a ham sandwich from 5 miles away.", skill: "scent" },
+            "blu": { name: "Blu", breed: "Coonhound", desc: "Sleek, fast, and loud. The nose knows.", skill: "scent" },
+            "olaf": { name: "Olaf", breed: "St. Bernard", desc: "A massive mountain of fur. Strong enough to pull a truck.", skill: "strength" },
+            "honey": { name: "Honey", breed: "Corgi/Bernese", desc: "Looks like a Corgi, colored like a Bernese. Low to the ground, high charisma.", skill: "charisma" }
+        };
+
+        // --- OUTPUT ENGINE ---
+        const outputDiv = document.getElementById('output');
+        const inputField = document.getElementById('command-input');
+
+        function print(text, className = '') {
+            const p = document.createElement('div');
+            if (className) p.classList.add(className);
+            p.innerText = text;
+            outputDiv.appendChild(p);
+            // Force scroll to bottom immediately
+            requestAnimationFrame(() => {
+                outputDiv.scrollTop = outputDiv.scrollHeight;
+            });
+        }
+
+        // --- INPUT PARSER ---
+        inputField.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                const cmd = inputField.value.trim().toLowerCase();
+                inputField.value = '';
+                print(`> ${cmd}`, 'dialogue');
+                processCommand(cmd);
+                // Ensure input stays focused on mobile after enter
+                // setTimeout(() => inputField.focus(), 10); 
+                // Note: keeping focus on mobile can be annoying (virtual keyboard stays up), 
+                // so standard behavior is usually best, but the autofocus attr is there.
+            }
+        });
+
+        function processCommand(cmd) {
+            if (gameState.gameEnded) {
+                print("The game is over. Refresh to play again.");
+                return;
+            }
+
+            if (gameState.currentLocation === "intro") {
+                handleIntro(cmd);
+                return;
+            }
+
+            const parts = cmd.split(' ');
+            const verb = parts[0];
+            const noun = parts.slice(1).join(' ');
+
+            switch (verb) {
+                case "n":
+                case "north":
+                    move("north");
+                    break;
+                case "s":
+                case "south":
+                    move("south");
+                    break;
+                case "e":
+                case "east":
+                    move("east");
+                    break;
+                case "w":
+                case "west":
+                    move("west");
+                    break;
+                case "l":
+                case "look":
+                    look();
+                    break;
+                case "i":
+                case "inv":
+                case "inventory":
+                    checkInventory();
+                    break;
+                case "h":
+                case "help":
+                    print("COMMANDS: NORTH, SOUTH, EAST, WEST, LOOK, INVENTORY, SNIFF, BARK, TAKE [ITEM], HELP");
+                    break;
+                case "bark":
+                case "woof":
+                    handleBark();
+                    break;
+                case "sniff":
+                    handleSniff();
+                    break;
+                case "take":
+                case "get":
+                    takeItem(noun);
+                    break;
+                case "tree":
+                    handleTreeAttempt();
+                    break;
+                default:
+                    print("I don't understand that command, dog.", "error");
+            }
+        }
+
+        // --- GAME LOGIC ---
+
+        function handleIntro(cmd) {
+            if (cmd === 'start') {
+                print("\nCHOOSE YOUR DOG:");
+                print("1. BRUNO (Coonhound) - Master Tracker");
+                print("2. BLU (Coonhound) - The Nose of the North");
+                print("3. OLAF (St. Bernard) - The Gentle Giant");
+                print("4. HONEY (Corgi/Bernese) - The Charismatic Low-Rider");
+                print("\nType the name of the dog you want to be.");
+            } else if (dogs[cmd]) {
+                gameState.playerDog = dogs[cmd];
+                gameState.pack.push(cmd);
+                print(`\nExcellent choice. You are ${gameState.playerDog.name}.`);
+                print(gameState.playerDog.desc);
+                print("\nYour mission: Find the rest of the pack and Tree the Sacred Bunny.");
+                print("You start in Kindersley...");
+                gameState.currentLocation = "kindersley";
+                look();
+            } else {
+                print("Unknown dog. Type 'Bruno', 'Blu', 'Olaf', or 'Honey'.", "error");
+            }
+        }
+
+        function move(dir) {
+            const loc = locations[gameState.currentLocation];
+            if (loc.exits[dir]) {
+                const nextLocKey = loc.exits[dir];
+                
+                // Logic Gates for movement
+                if (nextLocKey === "marengo" && gameState.pack.length < 4) {
+                    print("You approach the Mystic Elevator of Marengo, but the aura is too strong. You need the full pack to enter this sacred ground.", "error");
+                    return;
+                }
+
+                gameState.currentLocation = nextLocKey;
+                look();
+            } else {
+                print("You can't go that way.", "error");
+            }
+        }
+
+        function look() {
+            const loc = locations[gameState.currentLocation];
+            print(`\n--- ${loc.name} ---`, "location");
+            print(loc.description);
+            
+            // Show exits
+            const exits = Object.keys(loc.exits).join(", ").toUpperCase();
+            print(`Exits: ${exits}`);
+
+            // Show NPCs
+            if (loc.npc) {
+                if (loc.npc === "olaf" && !gameState.pack.includes("olaf")) {
+                    print("\nOlaf the St. Bernard is here! He is stuck waist-deep in the mud pit.");
+                } else if (loc.npc === "honey" && !gameState.pack.includes("honey")) {
+                    print("\nHoney the Corgi-mix is here! She is barking furiously at a confused cow.");
+                } else if ((loc.npc === "hound") && (!gameState.pack.includes("bruno") && !gameState.pack.includes("blu"))) {
+                    // Logic to find the OTHER hound
+                    let missingHound = gameState.playerDog.name === "Bruno" ? "Blu" : "Bruno";
+                    if(gameState.playerDog.breed !== "Coonhound") {
+                        // If player is Olaf or Honey, we need to find both hounds eventually, 
+                        // but for simplicity, let's say the Hound at Hoosier is the one not picked.
+                        // If neither selected, default to Bruno for this logic.
+                        missingHound = "Bruno"; 
+                        if (gameState.pack.includes("bruno")) missingHound = "Blu";
+                    }
+                    print(`\n${missingHound} is here, running in circles trying to find a scent.`);
+                } else if (loc.npc === "badger") {
+                    print("\nA nasty Badger blocks the path to the elevator doors.");
+                } else if (loc.npc === "goose") {
+                    print("\nA giant Goose statue looms over you.");
+                } else if (loc.npc === "coyote") {
+                    print("\nA Coyote stands on the ridge, watching you.");
+                }
+            }
+
+            // Show Items
+            if (loc.items.length > 0) {
+                print(`You see: ${loc.items.join(", ")}`, "item");
+            }
+        }
+
+        function handleBark() {
+            const loc = locations[gameState.currentLocation];
+            print("WOOF! WOOF! AWOOOO!");
+
+            // NPC Interactions
+            if (loc.npc === "olaf" && !gameState.pack.includes("olaf")) {
+                if (gameState.pack.includes("honey")) {
+                    print("Honey uses her charisma to encourage Olaf. Olaf heaves himself out of the mud!");
+                    recruit("olaf");
+                } else {
+                    print("Olaf barks back sadly. He is too heavy to get out alone. He needs encouragement (Charisma).");
+                }
+            } else if (loc.npc === "honey" && !gameState.pack.includes("honey")) {
+                if (gameState.pack.some(d => dogs[d].breed === "Coonhound")) {
+                    print("The Coonhound bays loudly, scaring the cows away. Honey is free!");
+                    recruit("honey");
+                } else {
+                    print("Honey yips. The cows ignore you. If only someone had a loud, scary voice.");
+                }
+            } else if (loc.npc === "hound" && (!gameState.pack.includes("bruno") && !gameState.pack.includes("blu"))) {
+                 let missingHound = "Bruno"; // simplified
+                 if (gameState.pack.includes("bruno") || gameState.playerDog.name === "Bruno") missingHound = "Blu";
+
+                 // To get the hound, you need Strength to break through the thick brush
+                 if (gameState.pack.includes("olaf")) {
+                     print(`Olaf crashes through the brush like a bulldozer. ${missingHound} is found!`);
+                     recruit(missingHound.toLowerCase());
+                 } else {
+                     print(`You hear ${missingHound} inside the thick brush, but you can't reach them. You need more Strength.`);
+                 }
+            } else if (loc.npc === "badger") {
+                if (gameState.pack.length === 4) {
+                    print("The full pack barks in unison! The Badger hisses and retreats.");
+                    // Remove badger so we can tree the bunny
+                    locations["marengo"].npc = "bunny_track"; 
+                    print("The path to the Mystic Elevator is clear. You smell... The Sacred Bunny.");
+                } else {
+                    print("The badger doesn't care about just you. You need the whole pack.");
+                }
+            }
+        }
+
+        function recruit(dogKey) {
+            gameState.pack.push(dogKey);
+            print(`\n*** ${dogs[dogKey].name} has joined the pack! ***`, "item");
+            print(`Current Pack: ${gameState.pack.map(d => dogs[d].name).join(", ")}`);
+        }
+
+        function handleSniff() {
+            const loc = locations[gameState.currentLocation];
+            print("You sniff the air deeply...");
+            
+            if (loc.name === "Marengo Elevator") {
+                print("It smells like ancient grain, diesel, and... a carrot?", "item");
+            } else if (loc.name === "Kindersley Hub") {
+                print("Smells like fast food and exhaust.");
+            } else if (loc.name === "Coleville Oil Patch") {
+                print("Smells like oil and wet dog (Olaf).");
+            } else if (loc.name === "Hoosier Valley") {
+                print("The scent of a fellow hound is strong here.");
+            } else {
+                print("Just the smell of the Saskatchewan prairie wind.");
+            }
+        }
+
+        function checkInventory() {
+            if (gameState.inventory.length === 0) {
+                print("You aren't carrying anything.");
+            } else {
+                print(`You are carrying: ${gameState.inventory.join(", ")}`);
+            }
+            print(`Your Pack: ${gameState.pack.map(d => dogs[d].name).join(", ")}`);
+        }
+
+        function takeItem(item) {
+            const loc = locations[gameState.currentLocation];
+            const index = loc.items.indexOf(item);
+            if (index > -1) {
+                loc.items.splice(index, 1);
+                gameState.inventory.push(item);
+                print(`You picked up the ${item}.`);
+            } else {
+                print("You don't see that here.");
+            }
+        }
+
+        function handleTreeAttempt() {
+            const loc = locations[gameState.currentLocation];
+            if (loc.name !== "Marengo Elevator") {
+                print("There is no Sacred Bunny here to tree.");
+                return;
+            }
+            
+            if (loc.npc === "badger") {
+                print("The Badger is blocking you!");
+                return;
+            }
+
+            if (gameState.pack.length === 4) {
+                print("\nTHE FINAL SEQUENCE:", "item");
+                print("Bruno and Blu pick up the scent trail leading up the wooden leg of the elevator.");
+                print("Olaf braces against the door to keep it open.");
+                print("Honey coordinates the flank!");
+                print("You look up into the rafters of the ancient grain cathedral...");
+                print("THERE IT IS. THE SACRED BUNNY.");
+                print("You let out the howl of generations.");
+                print("\n*** CONGRATULATIONS! YOU HAVE TREED THE SACRED BUNNY! ***", "location");
+                print("The game is won. The pack is legendary.");
+                gameState.gameEnded = true;
+            } else {
+                print("You aren't ready yet.");
+            }
+        }
+
+    </script>
+</body>
+</html>
