@@ -250,10 +250,6 @@ WELCOME TO "THE BARK OF THE WEST".
                 inputField.value = '';
                 print(`> ${cmd}`, 'dialogue');
                 processCommand(cmd);
-                // Ensure input stays focused on mobile after enter
-                // setTimeout(() => inputField.focus(), 10); 
-                // Note: keeping focus on mobile can be annoying (virtual keyboard stays up), 
-                // so standard behavior is usually best, but the autofocus attr is there.
             }
         });
 
@@ -300,7 +296,7 @@ WELCOME TO "THE BARK OF THE WEST".
                     break;
                 case "h":
                 case "help":
-                    print("COMMANDS: NORTH, SOUTH, EAST, WEST, LOOK, INVENTORY, SNIFF, BARK, TAKE [ITEM], HELP");
+                    print("COMMANDS: NORTH, SOUTH, EAST, WEST, LOOK, INVENTORY, SNIFF, BARK, TAKE [ITEM], USE [ITEM], DROP [ITEM], HELP");
                     break;
                 case "bark":
                 case "woof":
@@ -312,6 +308,12 @@ WELCOME TO "THE BARK OF THE WEST".
                 case "take":
                 case "get":
                     takeItem(noun);
+                    break;
+                case "use":
+                    useItem(noun);
+                    break;
+                case "drop":
+                    dropItem(noun);
                     break;
                 case "tree":
                     handleTreeAttempt();
@@ -382,9 +384,6 @@ WELCOME TO "THE BARK OF THE WEST".
                     // Logic to find the OTHER hound
                     let missingHound = gameState.playerDog.name === "Bruno" ? "Blu" : "Bruno";
                     if(gameState.playerDog.breed !== "Coonhound") {
-                        // If player is Olaf or Honey, we need to find both hounds eventually, 
-                        // but for simplicity, let's say the Hound at Hoosier is the one not picked.
-                        // If neither selected, default to Bruno for this logic.
                         missingHound = "Bruno"; 
                         if (gameState.pack.includes("bruno")) missingHound = "Blu";
                     }
@@ -414,20 +413,19 @@ WELCOME TO "THE BARK OF THE WEST".
                     print("Honey uses her charisma to encourage Olaf. Olaf heaves himself out of the mud!");
                     recruit("olaf");
                 } else {
-                    print("Olaf barks back sadly. He is too heavy to get out alone. He needs encouragement (Charisma).");
+                    print("Olaf barks back sadly. He is too heavy to get out alone. He needs encouragement (Charisma) OR perhaps something slippery?");
                 }
             } else if (loc.npc === "honey" && !gameState.pack.includes("honey")) {
                 if (gameState.pack.some(d => dogs[d].breed === "Coonhound")) {
                     print("The Coonhound bays loudly, scaring the cows away. Honey is free!");
                     recruit("honey");
                 } else {
-                    print("Honey yips. The cows ignore you. If only someone had a loud, scary voice.");
+                    print("Honey yips. The cows ignore you. If only someone had a loud, scary voice, or a distraction?");
                 }
             } else if (loc.npc === "hound" && (!gameState.pack.includes("bruno") && !gameState.pack.includes("blu"))) {
                  let missingHound = "Bruno"; // simplified
                  if (gameState.pack.includes("bruno") || gameState.playerDog.name === "Bruno") missingHound = "Blu";
 
-                 // To get the hound, you need Strength to break through the thick brush
                  if (gameState.pack.includes("olaf")) {
                      print(`Olaf crashes through the brush like a bulldozer. ${missingHound} is found!`);
                      recruit(missingHound.toLowerCase());
@@ -437,7 +435,6 @@ WELCOME TO "THE BARK OF THE WEST".
             } else if (loc.npc === "badger") {
                 if (gameState.pack.length === 4) {
                     print("The full pack barks in unison! The Badger hisses and retreats.");
-                    // Remove badger so we can tree the bunny
                     locations["marengo"].npc = "bunny_track"; 
                     print("The path to the Mystic Elevator is clear. You smell... The Sacred Bunny.");
                 } else {
@@ -487,6 +484,62 @@ WELCOME TO "THE BARK OF THE WEST".
                 print(`You picked up the ${item}.`);
             } else {
                 print("You don't see that here.");
+            }
+        }
+
+        function dropItem(item) {
+            const index = gameState.inventory.indexOf(item);
+            if (index > -1) {
+                gameState.inventory.splice(index, 1);
+                locations[gameState.currentLocation].items.push(item);
+                print(`You dropped the ${item}.`);
+            } else {
+                print("You don't have that.");
+            }
+        }
+
+        function useItem(item) {
+            if (!gameState.inventory.includes(item)) {
+                print("You don't have that in your inventory!", "error");
+                return;
+            }
+
+            const loc = locations[gameState.currentLocation];
+
+            // Item Interactions
+            if (item === "kibble" && loc.name === "Eatonia Rail Line" && !gameState.pack.includes("honey")) {
+                print("You pour the kibble on the ground. The cows stop staring and rush over to eat it. The path is clear!", "item");
+                recruit("honey");
+                removeItem(item);
+            } 
+            else if (item === "grease" && loc.name === "Coleville Oil Patch" && !gameState.pack.includes("olaf")) {
+                print("You smear the industrial grease on the mud bank. It's slippery, but it helps Olaf slide his massive frame out of the pit!", "item");
+                recruit("olaf");
+                removeItem(item);
+            }
+            else if (item === "old_bone" && loc.npc === "coyote") {
+                print("You toss the old bone to the Coyote. He catches it mid-air, nods respectfully, and points his snout West toward Marengo.", "item");
+                removeItem(item);
+            }
+            else if (item === "kibble") {
+                print("You eat the kibble. It's dry, but nutritious. You feel like a good boy.");
+                removeItem(item);
+            }
+            else if (item === "grease") {
+                print("You get grease all over your paws. Great.");
+            }
+            else if (item === "old_bone") {
+                print("You chew on the bone for a bit. It helps you think.");
+            }
+            else {
+                print(`You can't use the ${item} here.`);
+            }
+        }
+
+        function removeItem(item) {
+            const index = gameState.inventory.indexOf(item);
+            if (index > -1) {
+                gameState.inventory.splice(index, 1);
             }
         }
 
