@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bridge Year Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Merriweather:ital,wght@0,300;0,400;1,300&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            background-color: #f5f5f4; /* stone-100 */
+            color: #1c1917; /* stone-900 */
+            padding-bottom: 80px; /* Space for bottom nav */
+        }
+
+        .serif {
+            font-family: 'Merriweather', serif;
+        }
+
+        /* Smooth tab transitions */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Accordion transition */
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .accordion-content.open {
+            max-height: 2000px; /* Arbitrary large number */
+            transition: max-height 0.5s ease-in;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Header -->
+    <header class="bg-emerald-900 text-stone-50 pt-12 pb-6 px-6 shadow-md sticky top-0 z-10">
+        <h1 class="text-2xl font-bold tracking-tight">The Bridge Year</h1>
+        <p class="text-emerald-200 text-sm mt-1 font-light">From Management to Maker</p>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="p-4 sm:p-6 max-w-2xl mx-auto">
+
+        <!-- VIEW 1: CATEGORIES -->
+        <div id="view-categories" class="tab-content active">
+            <div class="mb-6">
+                <h2 class="text-xl font-semibold mb-2 text-emerald-800">Prompt Library</h2>
+                <p class="text-stone-600 text-sm">Browse micro-reflections by your current headspace.</p>
+            </div>
+            <div id="accordion-container" class="space-y-4">
+                <!-- Accordions injected here via JS -->
+            </div>
+        </div>
+
+        <!-- VIEW 2: RANDOMIZER -->
+        <div id="view-random" class="tab-content">
+            <div class="flex flex-col items-center justify-center min-h-[60vh] text-center px-2">
+                <div class="bg-white p-8 rounded-2xl shadow-lg border border-stone-200 w-full relative">
+                    <span class="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-amber-200" id="random-category-label">Category</span>
+                    
+                    <i data-lucide="sparkles" class="mx-auto w-8 h-8 text-emerald-600 mb-4 mt-2"></i>
+                    
+                    <p id="random-prompt-text" class="serif text-lg leading-relaxed text-stone-800 italic mb-8">
+                        Click the button below to draw a micro-reflection for your current pocket of time.
+                    </p>
+                    
+                    <div class="flex flex-col gap-3">
+                        <button onclick="generateRandomPrompt()" class="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md transition-colors flex justify-center items-center gap-2">
+                            <i data-lucide="refresh-cw" class="w-5 h-5"></i> Draw New Prompt
+                        </button>
+                        <button onclick="copyRandomPrompt()" id="copy-btn" class="w-full bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium py-3 px-6 rounded-xl transition-colors flex justify-center items-center gap-2 border border-stone-300">
+                            <i data-lucide="copy" class="w-5 h-5"></i> Copy to Journal
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 3: LIBRARY -->
+        <div id="view-library" class="tab-content">
+            <div class="mb-6">
+                <h2 class="text-xl font-semibold mb-2 text-emerald-800">The Bookshelf</h2>
+                <p class="text-stone-600 text-sm">Divergent reading for the semi-retired, remote, systems-thinking maker.</p>
+            </div>
+            <div id="library-container" class="space-y-5">
+                <!-- Books injected here via JS -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Bottom Navigation (iPhone friendly) -->
+    <nav class="fixed bottom-0 w-full bg-white border-t border-stone-200 pb-safe z-50">
+        <div class="flex justify-around items-center h-16 max-w-2xl mx-auto px-2">
+            <button onclick="switchTab('categories')" id="tab-categories" class="nav-btn flex flex-col items-center justify-center w-full h-full text-emerald-700">
+                <i data-lucide="library" class="w-6 h-6 mb-1"></i>
+                <span class="text-[10px] font-semibold uppercase tracking-wider">Browse</span>
+            </button>
+            <button onclick="switchTab('random')" id="tab-random" class="nav-btn flex flex-col items-center justify-center w-full h-full text-stone-400">
+                <i data-lucide="shuffle" class="w-6 h-6 mb-1"></i>
+                <span class="text-[10px] font-semibold uppercase tracking-wider">Random</span>
+            </button>
+            <button onclick="switchTab('library')" id="tab-library" class="nav-btn flex flex-col items-center justify-center w-full h-full text-stone-400">
+                <i data-lucide="book-open" class="w-6 h-6 mb-1"></i>
+                <span class="text-[10px] font-semibold uppercase tracking-wider">Books</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Data and Application Logic -->
+    <script>
+        // --- DATA ---
+        const promptData = {
+            "The SK Heart & Rural Context": [
+                "What is one specific 'toxicity' from the AB context that is conspicuously absent right now? Take 60 seconds to just breathe into that absence.",
+                "How does living in this specific rural SK landscape influence your view of 'stewardship' vs 'management'?",
+                "Watch the sky or the prairie for three minutes. What is the difference between 'working' and 'existing within a system'?",
+                "What is the most valuable thing about your rural perspective that people in high-paced Calgary or Saskatoon boardrooms have completely forgotten?",
+                "If you were to design a remote service specifically for rural communities, what unique pain point do you understand better than a city-based consultant?",
+                "Think about the pace of life here. How can you bake this 'SK pace' into the foundation of your future side hustle so you don't accidentally rebuild the stress you left behind?",
+                "What local relationship or connection gives you energy right now, outside of school hours?"
+            ],
+            "Maker, Tech & Systems": [
+                "If your current school were a Raspberry Pi project, what's the 'ghost in the machine'—the recurring bug that just isn't worth fixing?",
+                "If you were 'prototyping' your next life, which part of your current day acts as the 3D-printing 'supports' (temporary structures that will be broken off)?",
+                "What is one digital tool or software that you currently use for 'work' but actually find deeply satisfying as a 'hobby'?",
+                "Apply the biological concept of 'homeostasis' to your current energy levels. What is knocking you out of balance, and what brings you back?",
+                "You love systems. What is one personal system you can build right now to protect 30 minutes of 'divergent thinking' time every day?",
+                "If you had a $1,000 'play budget' for your retirement hustle tomorrow, what's the first piece of gear, software, or course you'd buy? Why?",
+                "Think of a friction point you’ve solved in your school using tech/AI. How could that solution be 'packaged' into a PDF, video, or template for someone else?",
+                "What is a biological or chemical metaphor that perfectly describes the 'management' phase of your career right now?"
+            ],
+            "The Remote & Consulting Horizon": [
+                "When you imagine driving 2 hours to Saskatoon or 4 to Calgary for a flight, where are you going? A client? A retreat? Be specific about the destination.",
+                "If a school district 500km away hired you for one day to 'fix' one specific system, what would that system be?",
+                "Does your envisioned side hustle feel more like teaching adults, building tools/systems, or advising leaders?",
+                "What is the one type of work communication (email, video, text) you never want to touch again in retirement?",
+                "What communication medium would you happily use for 4 hours a day?",
+                "If you had to give a 15-minute masterclass on something you know 'too much' about (outside of school administration), what is the topic?",
+                "Imagine you are the consultant hired to replace yourself a year from now. What would you tell the new principal to absolutely ignore in order to stay sane?",
+                "What is a service you can provide asynchronously, from your desk in SK, while the client sleeps?"
+            ],
+            "Deconstructing Management": [
+                "Look at your calendar. Which 'management' tasks felt like a tax you had to pay, and which 'leadership' moments made you forget about the clock?",
+                "What is one management 'theatre' (done for optics, zero actual impact) that you can quietly stop performing this week?",
+                "What tasks can you move from 'excellence' to 'functional adequacy' to protect your creative energy?",
+                "Since you know you have an expiration date here, how does your approach to today's biggest stressor change?",
+                "What is one recurring meeting or task you can 'quietly quit' or delegate this month to reclaim 15 minutes?",
+                "At what time of day do you feel most 'alive' and creative? How do you protect that window from the management grind?",
+                "What is the line between 'giving up' and 'accepting what you cannot change'? Where are you standing on that line today?"
+            ],
+            "Identity & Legacy": [
+                "It’s one year from today. You are handing over your keys. What is the *one* thing you want to be able to say you left better than you found it?",
+                "Who are you when you take the title 'Principal' off? Describe that person in 3 adjectives.",
+                "If your career is currently in a 'dormant' or 'wintering' phase, what roots are growing beneath the soil that nobody can see yet?",
+                "Close your eyes. It’s April 2027. You are not at a staff meeting. What does the air smell like? (Coffee? Solder? Prairie wind?)",
+                "What is the difference between running *away* from management and running *toward* your next chapter? Which one are you doing right now?",
+                "What is a piece of knowledge you possess that would be lost to the world if you didn't write it down or share it?"
+            ]
+        };
+
+        const bookData = [
+            {
+                title: "The Portfolio Life",
+                author: "Christina Wallace",
+                desc: "The manual for a 'retirement hustle.' Argues that 'identity = job' is a failed system and shows how to build a life diversified like an investment portfolio (e.g., part consultant, part maker, part hobbyist).",
+                icon: "pie-chart"
+            },
+            {
+                title: "Slow Productivity",
+                author: "Cal Newport",
+                desc: "Perfect for the SK rural context. Newport argues against the frantic busyness of modern management and advocates for doing fewer things, working at a natural pace, and obsessing over quality.",
+                icon: "hourglass"
+            },
+            {
+                title: "Shop Class as Soulcraft",
+                author: "Matthew B. Crawford",
+                desc: "A philosophical look at why manual work (like 3D printing and Pi projects) offers a level of leadership, agency, and 'truth' that management never will.",
+                icon: "hammer"
+            },
+            {
+                title: "Company of One",
+                author: "Paul Jarvis",
+                desc: "A rural business book at its core. It’s about staying small on purpose, focusing on quality of life, autonomy, and flexibility over endless growth.",
+                icon: "user"
+            },
+            {
+                title: "Designing Your Life",
+                author: "Bill Burnett & Dave Evans",
+                desc: "Written by Stanford design professors. Applies the maker/design-thinking mindset (prototyping, iterating, bias to action) to figuring out 'what am I moving toward'.",
+                icon: "pen-tool"
+            },
+            {
+                title: "The Systems View of Life",
+                author: "Fritjof Capra",
+                desc: "(The Deep Cut). Connects biology, technology, and society. Dense, but feeds the 'systems thinker' brain perfectly when looking at how human organizations function (or fail).",
+                icon: "network"
+            },
+            {
+                title: "Range",
+                author: "David Epstein",
+                desc: "Validates having varied interests. Shows why generalists (educator + biologist + tech maker) are uniquely primed to solve complex problems in their later careers.",
+                icon: "target"
+            },
+            {
+                title: "Four Thousand Weeks",
+                author: "Oliver Burkeman",
+                desc: "A reality check on time. Essential for leaving management behind. It teaches you how to embrace your finitude and stop trying to 'clear the decks' of emails and tasks.",
+                icon: "calendar-clock"
+            },
+            {
+                title: "The Art of Gathering",
+                author: "Priya Parker",
+                desc: "If your future consulting/hustle involves bringing adults together (in Saskatoon, Calgary, or online), this book redefines how to create meaningful, non-toxic professional spaces.",
+                icon: "users"
+            }
+        ];
+
+        // --- STATE & INITIALIZATION ---
+        const flatPrompts = [];
+        for (const [category, prompts] of Object.entries(promptData)) {
+            prompts.forEach(p => flatPrompts.push({ text: p, category: category }));
+        }
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', () => {
+            renderCategories();
+            renderLibrary();
+            lucide.createIcons();
+            
+            // Generate an initial random prompt quietly
+            generateRandomPrompt(false); 
+        });
+
+        // --- RENDER FUNCTIONS ---
+
+        function renderCategories() {
+            const container = document.getElementById('accordion-container');
+            let html = '';
+            
+            for (const [category, prompts] of Object.entries(promptData)) {
+                let promptsHtml = prompts.map(p => 
+                    `<li class="mb-3 text-stone-700 leading-relaxed text-sm border-l-2 border-emerald-200 pl-3">${p}</li>`
+                ).join('');
+
+                html += `
+                <div class="bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden">
+                    <button class="w-full px-5 py-4 text-left flex justify-between items-center bg-white hover:bg-stone-50 transition-colors" onclick="toggleAccordion(this)">
+                        <span class="font-semibold text-stone-800">${category}</span>
+                        <i data-lucide="chevron-down" class="w-5 h-5 text-stone-400 transition-transform duration-300"></i>
+                    </button>
+                    <div class="accordion-content bg-stone-50 px-5">
+                        <ul class="py-4 space-y-2 list-none">
+                            ${promptsHtml}
+                        </ul>
+                    </div>
+                </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        function renderLibrary() {
+            const container = document.getElementById('library-container');
+            let html = '';
+            
+            bookData.forEach(book => {
+                html += `
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-stone-200 flex gap-4 items-start">
+                    <div class="bg-emerald-100 p-3 rounded-lg text-emerald-800 flex-shrink-0">
+                        <i data-lucide="${book.icon}" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-stone-900 leading-tight">${book.title}</h3>
+                        <p class="text-xs text-stone-500 mb-2 uppercase tracking-wide font-semibold mt-1">By ${book.author}</p>
+                        <p class="text-sm text-stone-600 leading-relaxed">${book.desc}</p>
+                    </div>
+                </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        // --- INTERACTION LOGIC ---
+
+        function toggleAccordion(btn) {
+            const content = btn.nextElementSibling;
+            const icon = btn.querySelector('i');
+            
+            // Toggle open class
+            content.classList.toggle('open');
+            
+            // Rotate icon
+            if (content.classList.contains('open')) {
+                icon.style.transform = 'rotate(180deg)';
+                // Re-initialize icons just in case
+                lucide.createIcons();
+            } else {
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        let currentRandomPrompt = "";
+
+        function generateRandomPrompt(animate = true) {
+            const randomIndex = Math.floor(Math.random() * flatPrompts.length);
+            const selected = flatPrompts[randomIndex];
+            currentRandomPrompt = selected.text;
+            
+            const textEl = document.getElementById('random-prompt-text');
+            const catEl = document.getElementById('random-category-label');
+            
+            if (animate) {
+                textEl.style.opacity = 0;
+                setTimeout(() => {
+                    catEl.innerText = selected.category;
+                    textEl.innerText = `"${selected.text}"`;
+                    textEl.style.opacity = 1;
+                    textEl.style.transition = "opacity 0.3s ease";
+                }, 150);
+            } else {
+                catEl.innerText = selected.category;
+                textEl.innerText = `"${selected.text}"`;
+            }
+
+            // Reset copy button
+            const copyBtn = document.getElementById('copy-btn');
+            copyBtn.innerHTML = '<i data-lucide="copy" class="w-5 h-5"></i> Copy to Journal';
+            lucide.createIcons();
+        }
+
+        function copyRandomPrompt() {
+            navigator.clipboard.writeText(currentRandomPrompt).then(() => {
+                const copyBtn = document.getElementById('copy-btn');
+                copyBtn.innerHTML = '<i data-lucide="check" class="w-5 h-5 text-emerald-600"></i> <span class="text-emerald-700">Copied!</span>';
+                lucide.createIcons();
+                
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<i data-lucide="copy" class="w-5 h-5"></i> Copy to Journal';
+                    lucide.createIcons();
+                }, 2000);
+            });
+        }
+
+        function switchTab(tabId) {
+            // Hide all views
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            // Reset all nav buttons
+            document.querySelectorAll('.nav-btn').forEach(el => {
+                el.classList.remove('text-emerald-700');
+                el.classList.add('text-stone-400');
+            });
+
+            // Show selected view
+            document.getElementById(`view-${tabId}`).classList.add('active');
+            
+            // Highlight selected nav button
+            const activeBtn = document.getElementById(`tab-${tabId}`);
+            activeBtn.classList.remove('text-stone-400');
+            activeBtn.classList.add('text-emerald-700');
+
+            // Optional: scroll to top smoothly when switching tabs
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
