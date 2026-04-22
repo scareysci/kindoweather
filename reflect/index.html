@@ -42,7 +42,7 @@
             transition: max-height 0.3s ease-out;
         }
         .accordion-content.open {
-            max-height: 2000px; /* Arbitrary large number */
+            max-height: 3000px; /* Arbitrary large number to fit all content */
             transition: max-height 0.5s ease-in;
         }
     </style>
@@ -73,7 +73,7 @@
         <div id="view-random" class="tab-content">
             <div class="flex flex-col items-center justify-center min-h-[60vh] text-center px-2">
                 <div class="bg-white p-8 rounded-2xl shadow-lg border border-stone-200 w-full relative">
-                    <span class="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-amber-200" id="random-category-label">Category</span>
+                    <span class="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-amber-200 whitespace-nowrap" id="random-category-label">Category</span>
                     
                     <i data-lucide="sparkles" class="mx-auto w-8 h-8 text-emerald-600 mb-4 mt-2"></i>
                     
@@ -128,6 +128,28 @@
     <script>
         // --- DATA ---
         const promptData = {
+            "Changes in Latitudes, Changes in Attitudes": [
+                "'It took a whole lot of miles to know what I know.' Look back at the mileage from AB to SK. What is one specific lesson you brought in your suitcase that you are actively using to protect your peace here?",
+                "'If we couldn't laugh, we would all go insane.' What is one absurdity about school management today that you just need to chuckle at instead of trying to fix?",
+                "'My occupational hazard being my occupation's just not around.' As the traditional 'Leadership' role shifts into endless management, what is the 'new ocean' you want to sail in your remote hustle?",
+                "'Breathe in, breathe out, move on.' What is one lingering piece of baggage from a past toxic environment that you need to consciously exhale today?",
+                "'And there's that one particular harbour, so far but yet so near.' Right now, SK is your harbour. How can you design your retirement hustle so it never forces you to leave this peace unless you *want* to?",
+                "'As the son of a son of a sailor, I went out on the sea for adventure.' Your 'sea' is the maker space, tech, and biology. What adventure are you putting off because you are too busy swabbing the deck of management?",
+                "'I'm growing older but not up.' How can you ensure your side hustle feels like 'play' (like a Raspberry Pi project) rather than just another administrative job?",
+                "'I'm a cowboy in the jungle.' Where in your current management role do you feel the most out of place, and how does that validate your decision to build a different kind of future?",
+                "Buffett built an empire not by following industry rules, but by creating his own lifestyle brand. What is the unique 'lifestyle' your remote hustle will offer, not just to clients, but to *you*?",
+                "A boat is a system that requires constant tweaking, much like your tech projects. What is the 'boat' you want to spend your retirement tinkering with?",
+                "'Some people love the ocean, some people like the pool.' You are moving from the controlled pool of public education to the open ocean of semi-retirement. What excites you most about the waves?",
+                "'Some of it's magic, some of it's tragic, but I had a good life all the way.' Looking at the 30-year arc of your career, what is the magic you want to carry forward, and the tragedy you are finally okay leaving behind?",
+                "'Searching is half the fun: life is much more manageable when thought of as a scavenger hunt as opposed to a surprise party.' How can you view your next 12 months as a scavenger hunt for your future hustle?",
+                "'If the phone doesn't ring, it's me.' What boundary do you need to set this week to ensure you have time where the phone doesn't ring, giving you space to just think?",
+                "Like a good sailor checking the barometer, what early indicators (internal or external) will tell you it’s time to launch the side hustle full-time?",
+                "'First you learn the native tongue.' As you shift to remote work and consulting, what 'native tongue' of the digital/remote landscape do you need to learn or practice this year?",
+                "The Jolly Mon sang to the fish and the stars, doing what he loved. What is the activity you do that makes you lose track of time, and how can that become the core of your next chapter?",
+                "Think about the transition from your 'work self' to your 'home self'. How can you design your future remote work so that the boundary between work and life feels seamless and joyful?",
+                "'You got fins to the left, fins to the right.' What are the specific distractions or 'sharks' in your current role that threaten to eat up your 3-10 minute reflection windows?",
+                "'It's my own damn fault.' Taking extreme ownership: What is one aspect of your current daily friction that you have the power to change right now, just by deciding to do it differently?"
+            ],
             "The SK Heart & Rural Context": [
                 "What is one specific 'toxicity' from the AB context that is conspicuously absent right now? Take 60 seconds to just breathe into that absence.",
                 "How does living in this specific rural SK landscape influence your view of 'stewardship' vs 'management'?",
@@ -185,6 +207,12 @@
         };
 
         const bookData = [
+            {
+                title: "A Pirate Looks at Fifty",
+                author: "Jimmy Buffett",
+                desc: "An autobiographical look at hitting a milestone, assessing the damage and the joy, steering by your own compass, and refusing to live a conventional third act. Essential Bridge Year reading.",
+                icon: "compass"
+            },
             {
                 title: "Change Enthusiasm",
                 author: "Cassandra Worthy",
@@ -278,7 +306,7 @@
                 <div class="bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden">
                     <button class="w-full px-5 py-4 text-left flex justify-between items-center bg-white hover:bg-stone-50 transition-colors" onclick="toggleAccordion(this)">
                         <span class="font-semibold text-stone-800">${category}</span>
-                        <i data-lucide="chevron-down" class="w-5 h-5 text-stone-400 transition-transform duration-300"></i>
+                        <i data-lucide="chevron-down" class="w-5 h-5 text-stone-400 transition-transform duration-300 flex-shrink-0 ml-2"></i>
                     </button>
                     <div class="accordion-content bg-stone-50 px-5">
                         <ul class="py-4 space-y-2 list-none">
